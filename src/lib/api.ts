@@ -1,5 +1,5 @@
 // CONT-AI Google Apps Script Backend API
-const API_BASE = 'https://script.google.com/macros/s/AKfycbw1IG1pV9EB4IbSvCwX8tMTjucGpt1AWWz5yv8ivgYUUPEhfw56qqGK1fYn7XYTGQli/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbz1ZyOmZWZM1ajXeOgMMdsNYf-VugbVsRjl-DtQht-LcyOx7XZ69J3dwLjzqIianRxD/exec';
 
 // Google OAuth Client ID (configurable - replace with your own)
 // To get your Client ID: https://console.cloud.google.com/apis/credentials
@@ -198,6 +198,14 @@ export const contAiApi = {
       body: JSON.stringify({ googleToken, role, ...additionalData, userInfo }),
       redirect: 'follow'
     });
+    return res.json();
+  },
+
+  // Obtener gastos del usuario
+  getGastos: async (userId: string, limit: number = 20): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams({ api: 'get_gastos', userId, limit: limit.toString() });
+    const url = `${API_BASE}?${params}`;
+    const res = await fetch(url);
     return res.json();
   }
 };

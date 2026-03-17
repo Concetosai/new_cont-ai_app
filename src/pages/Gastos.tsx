@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
+import React from "react";
 import { useDropzone } from "react-dropzone";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Loader2, FileText, CheckCircle, AlertCircle, Edit3 } from "lucide-react";
+import { Upload, Loader2, FileText, CheckCircle, AlertCircle, Edit3, History, TrendingUp } from "lucide-react";
 import Tesseract from 'tesseract.js';
 import heic2any from "heic2any";
 import contAiApi from "../lib/api";
@@ -62,6 +63,8 @@ export default function Gastos() {
   const [mode, setMode] = useState<"scan" | "manual">("scan");
   const [isSaving, setIsSaving] = useState(false);
   const [savedFileId, setSavedFileId] = useState<string | null>(null);
+  const [gastosHistory, setGastosHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const form = useForm<GastoFormValues>({
     resolver: zodResolver(gastoSchema),
@@ -79,6 +82,29 @@ export default function Gastos() {
   const getUserId = (): string => {
     return localStorage.getItem('userId') || '';
   };
+
+  // Cargar historial de gastos
+  const loadGastosHistory = useCallback(async () => {
+    const userId = getUserId();
+    if (!userId) return;
+
+    setIsLoadingHistory(true);
+    try {
+      const response = await contAiApi.getGastos(userId, 20);
+      if (response.success && response.data) {
+        setGastosHistory(response.data.gastos || []);
+      }
+    } catch (error) {
+      console.error('Error loading gastos history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, []);
+
+  // Cargar historial al montar el componente
+  React.useEffect(() => {
+    loadGastosHistory();
+  }, [loadGastosHistory]);
 
   // Convertir File a base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -556,6 +582,99 @@ export default function Gastos() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Historial de Gastos */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Card className="glass-card border-slate-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-blue-400" />
+                <h2 className="text-lg font-semibold" style={{ color: "hsl(210, 20%, 85%)" }}>
+                  Historial de Gastos
+                </h2>
+              </div>
+              {gastosHistory.length > 0 && (
+                <span className="text-xs px-2 py-1 rounded-full bg-blue-400/20 text-blue-400">
+                  {gastosHistory.length} gastos
+                </span>
+              )}
+            </div>
+
+            {isLoadingHistory ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+              </div>
+            ) : gastosHistory.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No hay gastos registrados aún</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {gastosHistory.map((gasto, index) => (
+                  <motion.div
+                    key={gasto.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-blue-500/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          gasto.status === 'approved' ? 'bg-green-400/20' : 'bg-yellow-400/20'
+                        }`}>
+                          {gasto.status === 'approved' ? (
+                            <CheckCircle className="w-5 h-5 text-green-400" />
+                          ) : (
+                            <FileText className="w-5 h-5 text-yellow-400" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-slate-200 truncate">
+                              {gasto.proveedor || 'Sin proveedor'}
+                            </p>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              gasto.status === 'approved' 
+                                ? 'bg-green-400/20 text-green-400'
+                                : 'bg-yellow-400/20 text-yellow-400'
+                            }`}>
+                              {gasto.status === 'approved' ? 'Aprobado' : 'Pendiente'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 mt-1 text-sm text-slate-400">
+                            <span>${gasto.monto?.toFixed(2) || '0.00'}</span>
+                            <span>•</span>
+                            <span>{gasto.categoria || 'Sin categoría'}</span>
+                            <span>•</span>
+                            <span>{new Date(gasto.fecha).toLocaleDateString()}</span>
+                          </div>
+                          {gasto.folio && (
+                            <p className="text-xs text-slate-500 mt-1">
+                              Folio: {gasto.folio}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold" style={{ color: "hsl(210, 20%, 90%)" }}>
+                          ${gasto.monto?.toFixed(2) || '0.00'}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }

@@ -283,6 +283,14 @@ function handleRequest(e, method) {
         
         result = saveGasto(gastoData);
         break;
+
+      // ========== GET GASTOS (HISTORIAL) ==========
+      case 'get_gastos':
+        const userIdGastos = e.parameter.userId;
+        const limitGastos = parseInt(e.parameter.limit) || 20;
+        if (!userIdGastos) throw new Error('userId requerido');
+        result = getGastosByUser(userIdGastos, limitGastos);
+        break;
         
       case 'vincular_contador':
         const vincularData = postDataContents ? JSON.parse(postDataContents) : {};
@@ -1233,6 +1241,50 @@ function saveGasto(gastoData) {
 }
 
 /**
+ * Obtiene los gastos de un usuario (últimos N registros)
+ * @param {string} userId - ID del usuario
+ * @param {number} limit - Cantidad de gastos a retornar (default: 20)
+ */
+function getGastosByUser(userId, limit = 20) {
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const sheet = ss.getSheetByName(SHEETS.GASTOS);
+    
+    if (!sheet) {
+      return { gastos: [], message: 'No hay gastos registrados' };
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    const gastos = [];
+    
+    // Empezar desde el final (más recientes primero)
+    for (let i = data.length - 1; i >= 1 && gastos.length < limit; i--) {
+      const row = data[i];
+      if (row[1] === userId) { // Columna B: UserID
+        gastos.push({
+          id: row[0],           // Columna A: FileID
+          userId: row[1],       // Columna B: UserID
+          monto: row[2],        // Columna C: monto
+          categoria: row[3],    // Columna D: categoria
+          fecha: row[4],        // Columna E: fecha
+          rfc: row[5],          // Columna F: rfc
+          status: row[6],       // Columna G: status
+          proveedor: row[7],    // Columna H: proveedor
+          folio: row[8]         // Columna I: folio
+        });
+      }
+    }
+    
+    Logger.log(`Gastos encontrados para ${userId}: ${gastos.length}`);
+    
+    return { gastos, total: gastos.length };
+  } catch (e) {
+    Logger.log('Error en getGastosByUser: ' + e.message);
+    return { gastos: [], error: e.message };
+  }
+}
+
+/**
  * Comparte la carpeta del usuario con su contador
  * @param {string} userId - ID del usuario
  * @param {string} contadorCode - Código del contador
@@ -1592,4 +1644,79 @@ function addCarpetaIDColumn() {
   const sheet = ss.getSheetByName('Usuarios');
   // Añadir encabezado en columna 10 (J)
   sheet.getRange(1, 10).setValue('CarpetaID');
+}
+
+/**
+ * Crea carpetas en Google Drive para TODOS los usuarios que no tienen
+ * Ejecutar esta función UNA VEZ para crear las carpetas de todos los usuarios
+ */
+function crearCarpetasParaUsuarios() {
+  const ss = SpreadsheetApp.getActive();
+  const userSheet = ss.getSheetByName('Usuarios');
+  
+  if (!userSheet) {
+    Logger.log('❌ Hoja Usuarios no encontrada');
+    return;
+  }
+  
+  const userData = userSheet.getDataRange().getValues();
+  const parentFolder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+  
+  Logger.log('=== Creando carpetas para usuarios ===');
+  Logger.log('Total de usuarios: ' + (userData.length - 1));
+  
+  let creadas = 0;
+  let existentes = 0;
+  let errores = 0;
+  
+  for (let i = 1; i < userData.length; i++) {
+    const userId = userData[i][0]; // Columna A
+    const nombre = userData[i][1]; // Columna B
+    const carpetaId = userData[i][9]; // Columna J (índice 9)
+    
+    if (!carpetaId || carpetaId === '' || carpetaId === null) {
+      try {
+        // Crear carpeta para este usuario
+        const folderName = `${userId} - ${nombre}`;
+        const newFolder = parentFolder.createFolder(folderName);
+        const newFolderId = newFolder.getId();
+        
+        // Guardar el ID en la hoja (Columna J = columna 10)
+        userSheet.getRange(i + 1, 10).setValue(newFolderId);
+        
+        Logger.log(`✅ Carpeta creada para ${userId} (${nombre}): ${newFolderId}`);
+        creadas++;
+        
+        // Pequeña pausa para evitar límites de API
+        Utilities.sleep(100);
+      } catch (e) {
+        Logger.log(`❌ Error creando carpeta para ${userId}: ${e.message}`);
+        errores++;
+      }
+    } else {
+      Logger.log(`⏭️  Usuario ${userId} ya tiene carpeta: ${carpetaId}`);
+      existentes++;
+    }
+  }
+  
+  Logger.log('=== Resumen ===');
+  Logger.log(`✅ Carpetas creadas: ${creadas}`);
+  Logger.log(`⏭️  Carpetas existentes: ${existentes}`);
+  Logger.log(`❌ Errores: ${errores}`);
+  Logger.log('=== Proceso completado ===');
+}
+
+/**
+ * Crea carpeta para un usuario específico (se usa automáticamente al registrar)
+ */
+function createUserFolder(userId, nombre) {
+  try {
+    const parentFolder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+    const folderName = `${userId} - ${nombre}`;
+    const newFolder = parentFolder.createFolder(folderName);
+    return newFolder.getId();
+  } catch (error) {
+    Logger.log('Error al crear carpeta para usuario: ' + error.message);
+    return null;
+  }
 }
