@@ -1,0 +1,230 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+
+/* CONT-AI Design System — Dark Fintech Premium */
+
+@layer base {
+  :root {
+    /* Core background: deep space */
+    --background: 210 50% 5%;
+    --foreground: 210 20% 95%;
+
+    --card: 210 40% 8%;
+    --card-foreground: 210 20% 95%;
+
+    --popover: 210 40% 8%;
+    --popover-foreground: 210 20% 95%;
+
+    /* Primary: cyan-electric blue */
+    --primary: 195 100% 50%;
+    --primary-foreground: 210 50% 5%;
+
+    /* Secondary: deep navy glass */
+    --secondary: 210 35% 12%;
+    --secondary-foreground: 210 20% 85%;
+
+    --muted: 210 30% 15%;
+    --muted-foreground: 210 15% 55%;
+
+    --accent: 220 80% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 30% 18%;
+    --input: 210 30% 12%;
+    --ring: 195 100% 50%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar */
+    --sidebar-background: 210 50% 4%;
+    --sidebar-foreground: 210 15% 80%;
+    --sidebar-primary: 195 100% 50%;
+    --sidebar-primary-foreground: 210 50% 5%;
+    --sidebar-accent: 210 35% 10%;
+    --sidebar-accent-foreground: 210 15% 90%;
+    --sidebar-border: 210 30% 12%;
+    --sidebar-ring: 195 100% 50%;
+
+    /* Custom tokens */
+    --glow-cyan: 195 100% 50%;
+    --glow-violet: 270 80% 60%;
+    --glow-blue: 220 90% 55%;
+    --surface-glass: 210 35% 10%;
+    --surface-glass-border: 210 40% 20%;
+
+    /* Gradients */
+    --gradient-bg: linear-gradient(135deg, hsl(210, 50%, 5%) 0%, hsl(0, 0%, 0%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(210, 35%, 12%) 0%, hsl(210, 45%, 7%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(195, 100%, 50%) 0%, hsl(220, 90%, 55%) 100%);
+    --gradient-glow: radial-gradient(circle at 50% 50%, hsl(195, 100%, 50% / 0.15) 0%, transparent 70%);
+
+    /* Shadows */
+    --shadow-card: 0 8px 32px hsl(195 100% 50% / 0.08), 0 2px 8px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 24px hsl(195 100% 50% / 0.3), 0 0 48px hsl(195 100% 50% / 0.15);
+    --shadow-violet: 0 0 24px hsl(270 80% 60% / 0.4), 0 0 48px hsl(270 80% 60% / 0.2);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+    background: var(--gradient-bg);
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.3);
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  /* Glass card morphism */
+  .glass-card {
+    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(210 45% 6%) 100%);
+    border: 1px solid hsl(var(--surface-glass-border));
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(12px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.5), transparent);
+  }
+
+  /* Glow effects */
+  .glow-cyan {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .glow-violet {
+    box-shadow: var(--shadow-violet);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px hsl(var(--primary) / 0.6), 0 0 40px hsl(var(--primary) / 0.3);
+  }
+
+  .text-glow-violet {
+    text-shadow: 0 0 20px hsl(var(--glow-violet) / 0.6), 0 0 40px hsl(var(--glow-violet) / 0.3);
+  }
+
+  /* Magic button */
+  .magic-btn {
+    background: radial-gradient(circle at 30% 30%, hsl(270 80% 70%) 0%, hsl(270 80% 50%) 40%, hsl(250 70% 35%) 100%);
+    box-shadow: 0 0 30px hsl(270 80% 60% / 0.5), 0 0 60px hsl(270 80% 60% / 0.25), inset 0 1px 0 hsl(270 80% 80% / 0.3);
+  }
+
+  /* KPI card */
+  .kpi-card {
+    background: var(--gradient-card);
+    border: 1px solid hsl(var(--primary) / 0.2);
+    box-shadow: var(--shadow-card), inset 0 1px 0 hsl(var(--primary) / 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .kpi-card:hover {
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: var(--shadow-glow), var(--shadow-card);
+    transform: translateY(-2px);
+  }
+
+  /* Sidebar item */
+  .sidebar-item {
+    transition: all 0.2s ease;
+    border-radius: 0.5rem;
+  }
+
+  .sidebar-item:hover {
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+  }
+
+  .sidebar-item.active {
+    background: hsl(var(--primary) / 0.15);
+    color: hsl(var(--primary));
+    box-shadow: inset 2px 0 0 hsl(var(--primary));
+  }
+
+  /* Bio-tonic vein line */
+  .vein-line {
+    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.6), transparent);
+    height: 1px;
+    animation: vein-pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes vein-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  /* Orbitron font for brand */
+  .font-brand {
+    font-family: 'Orbitron', monospace;
+  }
+
+  /* Grid background */
+  .grid-bg {
+    background-image:
+      linear-gradient(hsl(var(--primary) / 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* Data flow animation */
+  @keyframes data-flow {
+    0% { transform: translateY(-100%); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateY(100%); opacity: 0; }
+  }
+
+  .data-flow {
+    animation: data-flow 2s linear infinite;
+  }
+
+  /* Pulse ring */
+  @keyframes pulse-ring {
+    0% { transform: scale(0.8); opacity: 1; }
+    100% { transform: scale(2); opacity: 0; }
+  }
+
+  .pulse-ring {
+    animation: pulse-ring 2s ease-out infinite;
+  }
+
+  /* Float animation */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .float-anim {
+    animation: float 4s ease-in-out infinite;
+  }
+}
