@@ -175,7 +175,7 @@ function getUserCarpetaId(userId) {
  * Añade la columna CarpetaID a la hoja de Usuarios (ejecutar una sola vez)
  */
 function addCarpetaIDColumn() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName('Usuarios');
   // Añadir encabezado en columna 10 (J)
   sheet.getRange(1, 10).setValue('CarpetaID');
@@ -376,7 +376,7 @@ function createUserFolder(userId, nombre) {
  * Espera: { nombre, email, password, role, rfc, contadorCode? (solo si el usuario se vincula) }
  */
 function registerUser(data) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName(SHEETS.USUARIOS);
 
   // Verificar si el email ya existe
@@ -448,7 +448,7 @@ function registerUser(data) {
  * Espera: { email, password }
  */
 function loginUser(credenciales) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName(SHEETS.USUARIOS);
   
   const data = sheet.getDataRange().getValues();
@@ -503,7 +503,7 @@ function googleLogin(data) {
     const email = userInfo.email;
     
     // Buscar usuario por email
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.getActive();
     const sheet = ss.getSheetByName(SHEETS.USUARIOS);
     const spreadsheetData = sheet.getDataRange().getValues();
     
@@ -566,7 +566,7 @@ function googleRegister(data) {
     const nombre = additionalData?.nombre || userInfo?.name || 'Usuario';
     
     // Verificar si el usuario ya existe
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.getActive();
     const sheet = ss.getSheetByName(SHEETS.USUARIOS);
     const spreadsheetData = sheet.getDataRange().getValues();
     
@@ -645,7 +645,7 @@ function googleRegister(data) {
  * Obtiene la configuración de un usuario (incluyendo info del contador vinculado)
  */
 function getUserSettings(userId) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName(SHEETS.USUARIOS);
   
   const data = sheet.getDataRange().getValues();
@@ -679,7 +679,7 @@ function getUserSettings(userId) {
  * Obtiene información de un contador a partir de su código único
  */
 function getContadorInfoByCode(contadorCode) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName(SHEETS.USUARIOS);
   
   const data = sheet.getDataRange().getValues();
@@ -726,7 +726,7 @@ function sendWelcomeEmail(email, nombre, role) {
 // FUNCIONES DE NEGOCIO - DASHBOARD
 // =====================================================
 function getDashboardKpis(userId) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   
   // 1. Saldo Total (FlujoEfectivo)
   const flujoSheet = ss.getSheetByName(SHEETS.FLUJO_EFECTIVO);
@@ -791,7 +791,7 @@ function getDashboardKpis(userId) {
 // =====================================================
 
 // Google Cloud Vision API Key
-const GOOGLE_VISION_API_KEY = 'AIzaSyBv3-RzLpwE_vBTXAQZ5ojqPJ4mW2c8p6M';
+const GOOGLE_VISION_API_KEY = 'AIzaSyCYXf3gCe8hwonoW0B2Qhk7r77Y2XDjt6A';
 
 // OCR.space API Key (free tier - fallback)
 const OCR_SPACE_API_KEY = 'helloworld';
@@ -1239,7 +1239,7 @@ function saveGasto(gastoData) {
  */
 function shareFolderWithContador(userId, contadorCode) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.getActive();
     const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
     const data = userSheet.getDataRange().getValues();
     
@@ -1278,7 +1278,7 @@ function shareFolderWithContador(userId, contadorCode) {
  */
 function vincularContador(userId, contadorCode) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.getActive();
     const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
     const data = userSheet.getDataRange().getValues();
     
@@ -1312,7 +1312,7 @@ function vincularContador(userId, contadorCode) {
 // FUNCIONES DE NEGOCIO - IMPUESTOS
 // =====================================================
 function getImpuestosMes(userId) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   
   const facturasSheet = ss.getSheetByName(SHEETS.FACTURAS);
   const facturasData = facturasSheet.getDataRange().getValues();
@@ -1342,7 +1342,7 @@ function getImpuestosMes(userId) {
 }
 
 function pagarImpuesto(pagoData) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName(SHEETS.IMPUESTOS);
   
   const data = sheet.getDataRange().getValues();
@@ -1361,7 +1361,7 @@ function pagarImpuesto(pagoData) {
 // FUNCIONES DE NEGOCIO - INTEGRACIONES
 // =====================================================
 function conectarPlataforma(integracionData) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   let sheet = ss.getSheetByName('Integraciones');
   if (!sheet) {
     sheet = ss.insertSheet('Integraciones');
@@ -1379,7 +1379,7 @@ function conectarPlataforma(integracionData) {
 }
 
 function importarVentas(ventasData) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const facturasSheet = ss.getSheetByName(SHEETS.FACTURAS);
   
   for (let i = 0; i < 5; i++) {
@@ -1403,7 +1403,7 @@ function importarVentas(ventasData) {
 // FUNCIONES DE NEGOCIO - ALERTAS
 // =====================================================
 function getAlertas(userId) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const alertasSheet = ss.getSheetByName(SHEETS.ALERTAS);
   
   const data = alertasSheet.getDataRange().getValues();
@@ -1460,7 +1460,7 @@ function calcularSimulacion(data) {
 // FUNCIONES DE NEGOCIO - CHAT / CONTADOR
 // =====================================================
 function getMensajesChat(userId) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   let sheet = ss.getSheetByName('Chat');
   if (!sheet) {
     sheet = ss.insertSheet('Chat');
@@ -1485,7 +1485,7 @@ function getMensajesChat(userId) {
 }
 
 function enviarMensaje(mensajeData) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   let sheet = ss.getSheetByName('Chat');
   if (!sheet) {
     sheet = ss.insertSheet('Chat');
@@ -1508,7 +1508,7 @@ function enviarMensaje(mensajeData) {
 // CRON JOBS (Triggers)
 // =====================================================
 function verificarVencimientosDiario() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const impuestosSheet = ss.getSheetByName(SHEETS.IMPUESTOS);
   const alertasSheet = ss.getSheetByName(SHEETS.ALERTAS);
   
@@ -1588,7 +1588,7 @@ function setupTriggers() {
  * Ejecutar una sola vez para actualizar la estructura de la hoja
  */
 function addCarpetaIDColumn() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName('Usuarios');
   // Añadir encabezado en columna 10 (J)
   sheet.getRange(1, 10).setValue('CarpetaID');
