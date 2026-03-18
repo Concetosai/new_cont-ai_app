@@ -154,16 +154,25 @@ export default function Facturacion() {
       console.log('Download response:', response);
       
       // Check for nested success (backend wraps responses with { success, data })
-      if (response.success && response.data && response.data.success && response.data.xml) {
-        // Create a blob and download as XML file
-        const xmlContent = response.data.xml;
-        const blob = new Blob([xmlContent], { type: 'application/xml' });
+      if (response.success && response.data && response.data.success && response.data.pdf) {
+        // Decode base64 PDF and download
+        const pdfBase64 = response.data.pdf;
+        const pdfName = response.data.pdfName || `Factura_${folio || facturaId.substring(0, 8)}.pdf`;
+        
+        // Convert base64 to binary
+        const binaryString = atob(pdfBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        // Create blob and download
+        const blob = new Blob([bytes], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         
-        // Create a temporary link to trigger download
         const link = document.createElement('a');
         link.href = url;
-        link.download = `${folio || 'factura'}_${facturaId.substring(0, 8)}.xml`;
+        link.download = pdfName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

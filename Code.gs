@@ -1669,10 +1669,16 @@ function downloadFactura(facturaId) {
         // Generar contenido XML CFDI simulado
         const xmlContent = generateCFDIXML(factura);
         
+        // Generar PDF
+        const pdfBlob = generateInvoicePDF(factura);
+        const pdfBase64 = Utilities.base64Encode(pdfBlob.getBytes());
+        
         return {
           success: true,
           factura: factura,
           xml: xmlContent,
+          pdf: pdfBase64,
+          pdfName: `Factura_${factura.folio || factura.id.substring(0, 8)}.pdf`,
           mensaje: 'Factura encontrada'
         };
       }
@@ -1721,6 +1727,177 @@ function generateCFDIXML(factura) {
 </cfdi:Comprobante>`;
   
   return xml;
+}
+
+/**
+ * Genera un PDF de la factura en formato profesional
+ */
+function generateInvoicePDF(factura) {
+  const uuid = Utilities.getUuid();
+  const fecha = new Date();
+  const fechaStr = Utilities.formatDate(fecha, 'GMT-6', 'dd/MM/yyyy HH:mm:ss');
+  
+  const subtotal = factura.monto;
+  const iva = factura.iva || (subtotal * 0.16);
+  const total = subtotal + iva;
+  
+  // Create HTML content for the invoice
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+    .header { display: flex; justify-content: space-between; margin-bottom: 30px; border-bottom: 2px solid #0066cc; padding-bottom: 20px; }
+    .company-name { font-size: 24px; font-weight: bold; color: #0066cc; }
+    .invoice-title { font-size: 28px; font-weight: bold; color: #333; text-align: right; }
+    .invoice-number { font-size: 14px; color: #666; text-align: right; }
+    .section { margin: 20px 0; }
+    .section-title { font-size: 14px; font-weight: bold; color: #0066cc; margin-bottom: 10px; text-transform: uppercase; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .info-box { background: #f5f5f5; padding: 15px; border-radius: 5px; }
+    .info-label { font-size: 11px; color: #666; text-transform: uppercase; }
+    .info-value { font-size: 14px; font-weight: bold; color: #333; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th { background: #0066cc; color: white; padding: 12px; text-align: left; font-size: 12px; }
+    td { padding: 12px; border-bottom: 1px solid #ddd; font-size: 13px; }
+    .text-right { text-align: right; }
+    .totals { margin-top: 20px; text-align: right; }
+    .totals-row { display: flex; justify-content: flex-end; padding: 8px 0; }
+    .totals-label { width: 150px; font-size: 14px; color: #666; }
+    .totals-value { width: 120px; font-size: 14px; font-weight: bold; }
+    .total-row { background: #0066cc; color: white; padding: 15px; border-radius: 5px; }
+    .total-row .totals-label, .total-row .totals-value { color: white; font-size: 18px; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 11px; color: #666; text-align: center; }
+    .status { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+    .status-timbrada { background: #d4edda; color: #155724; }
+    .status-pendiente { background: #fff3cd; color: #856404; }
+    .status-pagada { background: #d1ecf1; color: #0c5460; }
+    .status-cancelada { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="company-name">CONT-AI</div>
+      <div style="font-size: 14px; color: #666;">Contabilidad Inteligente S.A. de C.V.</div>
+      <div style="font-size: 12px; color: #999;">RFC: XAXX010101000</div>
+      <div style="font-size: 12px; color: #999;">Régimen Fiscal: 601 - General Ley Personas Morales</div>
+    </div>
+    <div style="text-align: right;">
+      <div class="invoice-title">FACTURA</div>
+      <div class="invoice-number">Folio: ${factura.folio || 'CFDI-' + (factura.id ? factura.id.substring(0, 8) : 'N/A')}</div>
+      <div style="font-size: 12px; color: #666;">Fecha: ${factura.fecha || fechaStr}</div>
+      <span class="status status-${factura.status || 'pendiente'}">${(factura.status || 'pendiente').toUpperCase()}</span>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Datos del Receptor</div>
+    <div class="info-grid">
+      <div class="info-box">
+        <div class="info-label">RFC</div>
+        <div class="info-value">${factura.rfcReceptor || 'XAXX010101000'}</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Nombre / Razón Social</div>
+        <div class="info-value">${factura.nombreReceptor || 'PÚBLICO GENERAL'}</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Régimen Fiscal</div>
+        <div class="info-value">${factura.regimenFiscal || '601'} - General Ley Personas Morales</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Uso CFDI</div>
+        <div class="info-value">${factura.usoCFDI || 'G03'} - Gastos en General</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Conceptos</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Clave</th>
+          <th>Descripción</th>
+          <th class="text-right">Cantidad</th>
+          <th class="text-right">Unitario</th>
+          <th class="text-right">Importe</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>84111506</td>
+          <td>${factura.descripcion || 'Servicios de consultoría'}</td>
+          <td class="text-right">1</td>
+          <td class="text-right">${subtotal.toFixed(2)}</td>
+          <td class="text-right">${subtotal.toFixed(2)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="totals">
+    <div class="totals-row">
+      <div class="totals-label">Subtotal:</div>
+      <div class="totals-value">${subtotal.toFixed(2)}</div>
+    </div>
+    <div class="totals-row">
+      <div class="totals-label">IVA (16%):</div>
+      <div class="totals-value">${iva.toFixed(2)}</div>
+    </div>
+    <div class="totals-row total-row">
+      <div class="totals-label">TOTAL:</div>
+      <div class="totals-value">${total.toFixed(2)}</div>
+    </div>
+  </div>
+  
+  <div class="section" style="margin-top: 30px;">
+    <div class="section-title">Datos del CFDI</div>
+    <div class="info-grid">
+      <div class="info-box">
+        <div class="info-label">UUID (Folio Fiscal)</div>
+        <div class="info-value" style="font-size: 11px;">${uuid}</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Fecha de Timbrado</div>
+        <div class="info-value">${fechaStr}</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Número de Certificado</div>
+        <div class="info-value">00001000000400000000</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Versión CFDI</div>
+        <div class="info-value">4.0</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <p>Este documento es una representación impresa de un CFDI 4.0</p>
+    <p>CONT-AI Contabilidad Inteligente S.A. de C.V. | www.cont-ai.com</p>
+    <p>Este comprobante no tiene efectos fiscales reales - Es una simulación para propósitos de demostración</p>
+  </div>
+</body>
+</html>`;
+  
+  // Create a temporary Google Doc and convert to PDF
+  const tempDoc = DocumentApp.create('TempInvoice_' + uuid);
+  const tempDocBody = tempDoc.getBody();
+  tempDocBody.setHtmlContent(htmlContent);
+  tempDoc.saveAndClose();
+  
+  // Get the document as PDF
+  const pdfBlob = tempDoc.getAs('application/pdf');
+  pdfBlob.setName(`Factura_${factura.folio || factura.id}.pdf`);
+  
+  // Delete the temporary document
+  DriveApp.getFileById(tempDoc.getId()).setTrashed(true);
+  
+  return pdfBlob;
 }
 
 // =====================================================
