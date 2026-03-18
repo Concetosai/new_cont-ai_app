@@ -1,7 +1,78 @@
 import { motion } from "framer-motion";
-import { Calculator, FileText, Clock, CheckCircle, AlertTriangle, Download } from "lucide-react";
+import { Calculator, FileText, Clock, CheckCircle, AlertTriangle, Download, Loader2 } from "lucide-react";
+import { contAiApi } from "../lib/api";
+import { useState, useEffect } from "react";
+
+// Mock user ID for demo
+const MOCK_USER_ID = "usuario-001";
+
+interface ImpuestosData {
+  isr: number;
+  iva: number;
+  imss: number;
+  vence: string;
+}
 
 export default function Impuestos() {
+  const [loading, setLoading] = useState(true);
+  const [impuestos, setImpuestos] = useState<ImpuestosData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadImpuestos();
+  }, []);
+
+  const loadImpuestos = async () => {
+    try {
+      setLoading(true);
+      const response = await contAiApi.getImpuestos(MOCK_USER_ID);
+      
+      if (response.success && response.data && response.data.success) {
+        setImpuestos(response.data);
+      } else {
+        // Use default values if no data
+        setImpuestos({
+          isr: 0,
+          iva: 0,
+          imss: 0,
+          vence: '17/04/2026'
+        });
+      }
+    } catch (err) {
+      console.error('Error loading impuestos:', err);
+      setError('Error al cargar impuestos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const getCurrentMonth = () => {
+    const date = new Date();
+    return date.toLocaleString('es-MX', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6 max-w-4xl mx-auto">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: "hsl(35, 95%, 60%)" }} />
+        </div>
+      </div>
+    );
+  }
+
+  const currentMonth = getCurrentMonth();
+  const impuestosData = impuestos || { isr: 0, iva: 0, imss: 0, vence: '17/04/2026' };
+
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
       {/* Header */}
@@ -31,7 +102,7 @@ export default function Impuestos() {
         >
           <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "hsl(35, 95%, 65%)" }}>
             <Calculator className="w-6 h-6" />
-            Pendientes Marzo 2026
+            Pendientes {currentMonth}
           </h2>
           
           <div className="space-y-6">
@@ -45,10 +116,10 @@ export default function Impuestos() {
                 <CheckCircle className="w-6 h-6" style={{ color: "hsl(145, 60%, 55%)" }} />
               </div>
               <div className="text-3xl font-black mb-2" style={{ color: "hsl(35, 95%, 60%)" }}>
-                $18,450
+                {formatCurrency(impuestosData.isr)}
               </div>
               <p className="text-sm" style={{ color: "hsl(210, 15%, 55%)" }}>
-                Vence: <span style={{ color: "hsl(35, 95%, 60%)", fontWeight: 600 }}>17 Mar</span> 
+                Vence: <span style={{ color: "hsl(35, 95%, 60%)", fontWeight: 600 }}>{impuestosData.vence}</span> 
                 · <span style={{ color: "hsl(145, 60%, 55%)" }}>Listo para pagar</span>
               </p>
             </div>
@@ -63,10 +134,27 @@ export default function Impuestos() {
                 <AlertTriangle className="w-6 h-6" style={{ color: "hsl(35, 95%, 60%)" }} />
               </div>
               <div className="text-3xl font-black mb-2" style={{ color: "hsl(35, 95%, 60%)" }}>
-                $8,230
+                {formatCurrency(impuestosData.iva)}
               </div>
               <p className="text-sm" style={{ color: "hsl(210, 15%, 55%)" }}>
-                Debes: <span style={{ color: "hsl(35, 95%, 65%)", fontWeight: 600 }}>$6,120</span>
+                Debes: <span style={{ color: "hsl(35, 95%, 65%)", fontWeight: 600 }}>{formatCurrency(impuestosData.iva)}</span>
+              </p>
+            </div>
+
+            {/* IMSS */}
+            <div className="glass-card p-5 rounded-xl">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-lg" style={{ color: "hsl(210, 20%, 90%)" }}>IMSS</h3>
+                  <p className="text-xs" style={{ color: "hsl(210, 15%, 50%)" }}>Bimestral</p>
+                </div>
+                <Clock className="w-6 h-6" style={{ color: "hsl(35, 95%, 60%)" }} />
+              </div>
+              <div className="text-3xl font-black mb-2" style={{ color: "hsl(35, 95%, 60%)" }}>
+                {formatCurrency(impuestosData.imss)}
+              </div>
+              <p className="text-sm" style={{ color: "hsl(210, 15%, 55%)" }}>
+                Próximo: <span style={{ color: "hsl(35, 95%, 60%)", fontWeight: 600 }}>17 Abr 2026</span>
               </p>
             </div>
           </div>
@@ -121,9 +209,32 @@ export default function Impuestos() {
               </div>
             </div>
           </div>
+
+          <div className="glass-card rounded-2xl p-6">
+            <h3 className="font-bold mb-4 text-lg" style={{ color: "hsl(210, 20%, 90%)" }}>📊 Resumen</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span style={{ color: "hsl(210, 15%, 60%)" }}>ISR (30%)</span>
+                <span className="font-semibold" style={{ color: "hsl(35, 95%, 60%)" }}>{formatCurrency(impuestosData.isr)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span style={{ color: "hsl(210, 15%, 60%)" }}>IVA (16%)</span>
+                <span className="font-semibold" style={{ color: "hsl(35, 95%, 60%)" }}>{formatCurrency(impuestosData.iva)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span style={{ color: "hsl(210, 15%, 60%)" }}>IMSS</span>
+                <span className="font-semibold" style={{ color: "hsl(35, 95%, 60%)" }}>{formatCurrency(impuestosData.imss)}</span>
+              </div>
+              <div className="border-t pt-2 mt-2 flex items-center justify-between">
+                <span className="font-bold" style={{ color: "hsl(210, 20%, 90%)" }}>Total</span>
+                <span className="font-bold text-lg" style={{ color: "hsl(35, 95%, 60%)" }}>
+                  {formatCurrency(impuestosData.isr + impuestosData.iva + impuestosData.imss)}
+                </span>
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
     </div>
   );
 }
-
