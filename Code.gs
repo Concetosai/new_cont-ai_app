@@ -1207,35 +1207,42 @@ function saveGasto(gastoData) {
         const carpetaId = getUserCarpetaId(gastoData.userId);
         Logger.log('CarpetaID encontrado: ' + (carpetaId || 'NULL'));
 
-        try {
-          if (carpetaId && carpetaId !== '') {
-            Logger.log('Creando archivo en carpeta de usuario: ' + carpetaId);
-            const folder = DriveApp.getFolderById(carpetaId);
-            const fileName = `gasto_${gastoId}.jpg`;
-            const file = folder.createFile(blob, fileName);
-            fileId = file.getId();
-            Logger.log('File saved to user folder!');
-            Logger.log('FileId: ' + fileId);
-            Logger.log('URL: https://drive.google.com/file/d/' + fileId);
-          } else {
-            Logger.log('No user folder found, using general folder');
-            Logger.log('DRIVE_FOLDER_ID: ' + DRIVE_FOLDER_ID);
-            const folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
-            const fileName = `gasto_${gastoId}.jpg`;
-            const file = folder.createFile(blob, fileName);
-            fileId = file.getId();
-            Logger.log('File saved to general folder!');
-            Logger.log('FileId: ' + fileId);
+        let folder;
+        if (carpetaId && carpetaId !== '') {
+          try {
+            Logger.log('Buscando carpeta de usuario: ' + carpetaId);
+            folder = DriveApp.getFolderById(carpetaId);
+            Logger.log('Carpeta encontrada: ' + folder.getName());
+          } catch (folderError) {
+            Logger.log('Error obteniendo carpeta de usuario: ' + folderError.message);
+            Logger.log('Intentando con carpeta general...');
+            folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
           }
-        } catch (driveError) {
-          Logger.log('Drive error: ' + driveError.message);
-          Logger.log('Stack: ' + driveError.stack);
-          Logger.log('Continuando sin guardar imagen en Drive');
+        } else {
+          Logger.log('No user folder found, using general folder: ' + DRIVE_FOLDER_ID);
+          folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
         }
+        
+        // Determinar el tipo MIME basado en el contenido
+        let contentType = 'image/jpeg';
+        if (gastoData.fileType && gastoData.fileType.includes('pdf')) {
+          contentType = 'application/pdf';
+        }
+        
+        const extension = contentType === 'application/pdf' ? '.pdf' : '.jpg';
+        const fileName = 'gasto_' + gastoId + extension;
+        
+        Logger.log('Creando archivo: ' + fileName + ' (type: ' + contentType + ')');
+        const file = folder.createFile(blob, fileName, contentType);
+        fileId = file.getId();
+        Logger.log('File saved successfully!');
+        Logger.log('FileId: ' + fileId);
+        Logger.log('URL: https://drive.google.com/file/d/' + fileId);
+        
       } catch (e) {
-        Logger.log('Error processing file: ' + e.message);
+        Logger.log('Error processing/saving file: ' + e.message);
         Logger.log('Stack: ' + e.stack);
-        Logger.log('Continuando sin guardar imagen');
+        // No lanzamos error, continuamos sin guardar archivo
       }
     } else {
       Logger.log('No fileData provided or empty, skipping file save');
