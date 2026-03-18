@@ -356,6 +356,11 @@ function handleRequest(e, method) {
         result = getFacturas(userIdFacturas);
         break;
 
+      case 'download_factura':
+        const facturaId = e.parameter.facturaId;
+        result = downloadFactura(facturaId);
+        break;
+
       default:
         throw new Error(`API "${api}" no implementada`);
     }
@@ -1618,6 +1623,104 @@ function getFacturas(userId) {
       facturas: []
     };
   }
+}
+
+/**
+ * Descarga una factura en formato XML
+ * @param {string} facturaId - ID de la factura
+ */
+function downloadFactura(facturaId) {
+  try {
+    Logger.log('=== downloadFactura function ===');
+    Logger.log('facturaId: ' + facturaId);
+    
+    const ss = SpreadsheetApp.getActive();
+    const facturasSheet = ss.getSheetByName(SHEETS.FACTURAS);
+    
+    if (!facturasSheet) {
+      throw new Error('Hoja de Facturas no encontrada');
+    }
+    
+    const data = facturasSheet.getDataRange().getValues();
+    
+    // Buscar la factura por ID
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row[0] == facturaId) {
+        const factura = {
+          id: row[0],
+          userId: row[1],
+          clienteId: row[2],
+          monto: row[3],
+          fecha: row[4] instanceof Date ? Utilities.formatDate(row[4], 'GMT-6', 'yyyy-MM-dd HH:mm:ss') : row[4],
+          status: row[5],
+          iva: row[6],
+          comision: row[7],
+          folio: row[8],
+          rfcReceptor: row[9] || '',
+          nombreReceptor: row[10] || '',
+          usoCFDI: row[11] || 'G03',
+          regimenFiscal: row[12] || '601',
+          descripcion: row[13] || ''
+        };
+        
+        Logger.log('✅ Factura encontrada: ' + factura.folio);
+        
+        // Generar contenido XML CFDI simulado
+        const xmlContent = generateCFDIXML(factura);
+        
+        return {
+          success: true,
+          factura: factura,
+          xml: xmlContent,
+          mensaje: 'Factura encontrada'
+        };
+      }
+    }
+    
+    throw new Error('Factura no encontrada');
+    
+  } catch (e) {
+    Logger.log('Error en downloadFactura: ' + e.message);
+    return {
+      success: false,
+      error: e.message
+    };
+  }
+}
+
+/**
+ * Genera un XML CFDI 4.0 simulado
+ */
+function generateCFDIXML(factura) {
+  const uuid = Utilities.getUuid();
+  const fecha = new Date();
+  const fechaStr = Utilities.formatDate(fecha, 'GMT-6', 'yyyy-MM-dd'T'HH:mm:ss');
+  const noCertificado = '00001000000400000000';
+  const sello = 'SIMULADO_SELLO_CFDI' + uuid;
+  
+  const subtotal = factura.monto;
+  const iva = factura.iva || (subtotal * 0.16);
+  const total = subtotal + iva;
+  
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd" Version="4.0" Serie="${factura.folio || 'CFDI'}" Folio="${factura.id.substring(0, 8)}" Fecha="${fechaStr}" Sello="${sello}" NoCertificado="${noCertificado}" Certificado="${noCertificado}" SubTotal="${subtotal.toFixed(2)}" Descuento="0.00" Moneda="MXN" TipoCambio="1" Total="${total.toFixed(2)}" FormaPago="01" MetodoPago="PUE" TipoDeComprobante="I" Exportacion="01" Confirmacion="">
+  <cfdi:Emisor Rfc="XAXX010101000" Nombre="CONT-AI CONTABILIDAD INTELIGENTE S.A. DE C.V." RegimenFiscal="601" FacAtrAdquirente=""/>
+  <cfdi:Receptor Rfc="${factura.rfcReceptor || 'XAXX010101000'}" Nombre="${factura.nombreReceptor || 'PUBLICO GENERAL'}" DomicilioFiscalReceptor="00000" RegimenFiscalReceptor="${factura.regimenFiscal || '601'}" UsoCFDI="${factura.usoCFDI || 'G03'}"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="84111506" NoIdentificacion="${factura.id.substring(0, 8)}" Cantidad="1" ClaveUnidad="E48" Unidad="Servicio" Descripcion="${factura.descripcion || 'Servicios de consultoría'}" ValorUnitario="${subtotal.toFixed(2)}" Importe="${subtotal.toFixed(2)}" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="${iva.toFixed(2)}">
+    <cfdi:Traslados>
+      <cfdi:Traslado Base="${subtotal.toFixed(2)}" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.16" Importe="${iva.toFixed(2)}"/>
+    </cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" xsi:schemaLocation="http://www.sat.gob.mx/TimbreFiscalDigital http://www.sat.gob.mx/sitio_internet/TimbreFiscalDigital/TimbreFiscalDigitalv11.xsd" Version="1.1" UUID="${uuid}" FechaTimbrado="${fechaStr}" RfcProvCertif="${noCertificado}" SelloCFD="${sello}" NoCertificadoSAT="${noCertificado}" SelloSAT="${sello}_SAT"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>`;
+  
+  return xml;
 }
 
 // =====================================================

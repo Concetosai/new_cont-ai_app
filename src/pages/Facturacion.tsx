@@ -146,6 +146,43 @@ export default function Facturacion() {
     }
   };
 
+  const handleDownload = async (facturaId: string, folio: string) => {
+    try {
+      const response = await contAiApi.downloadFactura(facturaId);
+      
+      if (response.success && response.data && response.data.xml) {
+        // Create a blob and download as XML file
+        const xmlContent = response.data.xml;
+        const blob = new Blob([xmlContent], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${folio || 'factura'}_${facturaId.substring(0, 8)}.xml`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Descarga completada",
+          description: `Factura ${folio} descargada exitosamente`,
+          variant: "default"
+        });
+      } else {
+        throw new Error(response.data?.error || 'Error al descargar');
+      }
+    } catch (error) {
+      console.error('Error downloading factura:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo descargar la factura",
+        variant: "destructive"
+      });
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -403,8 +440,11 @@ export default function Facturacion() {
                     <cfg.icon className="w-3 h-3" />
                     {cfg.label}
                   </div>
-                  <button className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-primary/10"
-                    style={{ color: "hsl(210, 15%, 50%)" }}>
+                  <button 
+                    onClick={() => handleDownload(inv.id, inv.folio)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-primary/10"
+                    style={{ color: "hsl(210, 15%, 50%)" }}
+                  >
                     <Download className="w-3.5 h-3.5" />
                   </button>
                 </motion.div>

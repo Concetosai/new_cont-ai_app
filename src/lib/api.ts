@@ -144,6 +144,13 @@ export const contAiApi = {
     return res.json();
   },
 
+  downloadFactura: async (facturaId: string): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams({ api: 'download_factura', facturaId });
+    const url = `${API_BASE}?${params}`;
+    const res = await fetch(url);
+    return res.json();
+  },
+
   // Chat Contador
   getChat: async (userId: string): Promise<ApiResponse<any>> => {
     const params = new URLSearchParams({ api: 'chat', userId });
