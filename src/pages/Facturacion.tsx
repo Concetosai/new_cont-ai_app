@@ -151,42 +151,73 @@ export default function Facturacion() {
       console.log('Downloading factura with ID:', facturaId);
       
       const response = await contAiApi.downloadFactura(facturaId);
-      console.log('Download response:', response);
+      console.log('Download response:', JSON.stringify(response, null, 2));
       
       // Check for nested success (backend wraps responses with { success, data })
-      if (response.success && response.data && response.data.success && response.data.pdf) {
-        // Decode base64 PDF and download
-        const pdfBase64 = response.data.pdf;
-        const pdfName = response.data.pdfName || `Factura_${folio || facturaId.substring(0, 8)}.pdf`;
-        
-        // Convert base64 to binary
-        const binaryString = atob(pdfBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+      if (response.success && response.data && response.data.success) {
+        // Try PDF first, fallback to XML
+        if (response.data.pdf) {
+          // Decode base64 PDF and download
+          const pdfBase64 = response.data.pdf;
+          const pdfName = response.data.pdfName || `Factura_${folio || facturaId.substring(0, 8)}.pdf`;
+          
+          // Convert base64 to binary
+          const binaryString = atob(pdfBase64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          // Create blob and download
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = pdfName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          toast({
+            title: "Descarga completada",
+            description: `Factura ${folio} descargada exitosamente`,
+            variant: "default"
+          });
+        } else if (response.data.xml) {
+          // Fallback to XML if PDF not available
+          const xmlContent = response.data.xml;
+          const blob = new Blob([xmlContent], { type: 'application/xml' });
+          const url = URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${folio || 'factura'}_${facturaId.substring(0, 8)}.xml`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          toast({
+            title: "Descarga completada (XML)",
+            description: `Factura ${folio} descargada en formato XML`,
+            variant: "default"
+          });
+        } else {
+          throw new Error('No se encontró PDF ni XML en la respuesta');
         }
-        
-        // Create blob and download
-        const blob = new Blob([bytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = pdfName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: "Descarga completada",
-          description: `Factura ${folio} descargada exitosamente`,
-          variant: "default"
-        });
       } else {
         // Handle error case - check both nested and top-level error messages
         const errorMsg = response.data?.error || response.error || 'Error al descargar';
-        console.error('Download error:', errorMsg);
+        console.error('Download error details:', {
+          response,
+          errorMsg,
+          hasData: !!response.data,
+          dataSuccess: response.data?.success,
+          hasPdf: !!response.data?.pdf,
+          hasXml: !!response.data?.xml
+        });
         throw new Error(errorMsg);
       }
     } catch (error) {
