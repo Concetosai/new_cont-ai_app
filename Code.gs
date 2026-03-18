@@ -1193,60 +1193,61 @@ function saveGasto(gastoData) {
     Logger.log('fileData exists: ' + (gastoData.fileData ? 'YES' : 'NO'));
     Logger.log('fileData length: ' + (gastoData.fileData ? gastoData.fileData.length : 0));
 
-    // Si hay archivo adjunto, guardarlo en la carpeta personal del usuario
+    // Si hay archivo adjunto, guardarlo en Drive
     let fileSaveError = null;
     if (gastoData.fileData && gastoData.fileData.length > 0) {
-      Logger.log('Attempting to save file to Drive...');
+      Logger.log('=== SAVE FILE TO DRIVE ===');
+      Logger.log('fileData length: ' + gastoData.fileData.length);
+      Logger.log('userId: ' + gastoData.userId);
 
       try {
         // Decodificar base64
         const blob = Utilities.base64Decode(gastoData.fileData);
-        Logger.log('Base64 decoded, blob size: ' + blob.length + ' bytes');
+        Logger.log('Blob created, size: ' + blob.length);
 
-        // Obtener el ID de la carpeta del usuario
-        Logger.log('Buscando carpeta para userId: ' + gastoData.userId);
-        const carpetaId = getUserCarpetaId(gastoData.userId);
-        Logger.log('CarpetaID encontrado: ' + (carpetaId || 'NULL'));
-
+        // Usar siempre la carpeta principal como fallback
         let folder;
-        if (carpetaId && carpetaId !== '') {
-          try {
-            Logger.log('Buscando carpeta de usuario: ' + carpetaId);
+        try {
+          // Intentar obtener carpeta del usuario
+          const carpetaId = getUserCarpetaId(gastoData.userId);
+          Logger.log('User folder ID: ' + carpetaId);
+          
+          if (carpetaId && carpetaId.length > 5) {
             folder = DriveApp.getFolderById(carpetaId);
-            Logger.log('Carpeta encontrada: ' + folder.getName());
-          } catch (folderError) {
-            Logger.log('Error obteniendo carpeta de usuario: ' + folderError.message);
-            Logger.log('Intentando con carpeta general...');
+            Logger.log('Using user folder: ' + folder.getName());
+          } else {
+            Logger.log('Invalid folder ID, using main folder');
             folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
           }
-        } else {
-          Logger.log('No user folder found, using general folder: ' + DRIVE_FOLDER_ID);
+        } catch (e) {
+          Logger.log('Error getting user folder: ' + e.message);
+          Logger.log('Using main folder');
           folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
         }
         
-        // Determinar el tipo MIME basado en el contenido
+        // Determinar tipo de archivo
         let contentType = 'image/jpeg';
         if (gastoData.fileType && gastoData.fileType.includes('pdf')) {
           contentType = 'application/pdf';
         }
-        
         const extension = contentType === 'application/pdf' ? '.pdf' : '.jpg';
-        const fileName = 'gasto_' + gastoId + extension;
         
-        Logger.log('Creando archivo: ' + fileName + ' (type: ' + contentType + ')');
+        const fileName = 'gasto_' + gastoId + '_' + Date.now() + extension;
+        Logger.log('Creating file: ' + fileName);
+        
         const file = folder.createFile(blob, fileName, contentType);
         fileId = file.getId();
-        Logger.log('File saved successfully!');
-        Logger.log('FileId: ' + fileId);
-        Logger.log('URL: https://drive.google.com/file/d/' + fileId);
+        Logger.log('✅ File saved! ID: ' + fileId);
+        Logger.log('✅ URL: https://drive.google.com/uc?id=' + fileId + '&export=download');
         
       } catch (e) {
         fileSaveError = e.message;
-        Logger.log('Error processing/saving file: ' + e.message);
+        Logger.log('❌ Error saving file: ' + e.message);
         Logger.log('Stack: ' + e.stack);
       }
+      Logger.log('=== END SAVE FILE ===');
     } else {
-      Logger.log('No fileData provided or empty, skipping file save');
+      Logger.log('No fileData to save');
     }
 
     // Agregar fila con columnas actualizadas
