@@ -440,10 +440,17 @@ export default function Gastos() {
         const responseData = response as any;
         // La respuesta del backend está anidada: response.data.data.fileId
         const fileId = responseData.data?.fileId || responseData.data?.data?.fileId || null;
+        const fileSaveError = responseData.data?.fileSaveError || responseData.data?.data?.fileSaveError || null;
+        
         setSavedFileId(fileId);
-
+        
         console.log('✅ Gasto guardado correctamente, fileId:', fileId);
-        toast.success("Gasto guardado correctamente");
+        if (fileSaveError) {
+          console.log('⚠️ Error guardando archivo:', fileSaveError);
+          toast.error("Error al guardar archivo: " + fileSaveError);
+        } else {
+          toast.success("Gasto guardado correctamente");
+        }
         
         // Recargar el historial después de guardar
         loadGastosHistory();

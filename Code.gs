@@ -1194,6 +1194,7 @@ function saveGasto(gastoData) {
     Logger.log('fileData length: ' + (gastoData.fileData ? gastoData.fileData.length : 0));
 
     // Si hay archivo adjunto, guardarlo en la carpeta personal del usuario
+    let fileSaveError = null;
     if (gastoData.fileData && gastoData.fileData.length > 0) {
       Logger.log('Attempting to save file to Drive...');
 
@@ -1240,9 +1241,9 @@ function saveGasto(gastoData) {
         Logger.log('URL: https://drive.google.com/file/d/' + fileId);
         
       } catch (e) {
+        fileSaveError = e.message;
         Logger.log('Error processing/saving file: ' + e.message);
         Logger.log('Stack: ' + e.stack);
-        // No lanzamos error, continuamos sin guardar archivo
       }
     } else {
       Logger.log('No fileData provided or empty, skipping file save');
@@ -1263,9 +1264,10 @@ function saveGasto(gastoData) {
     ]);
     Logger.log('Gasto saved to sheet!');
     Logger.log('Final fileId: ' + fileId);
+    Logger.log('File save error: ' + (fileSaveError || 'none'));
     Logger.log('==============================');
 
-    return { success: true, gastoId, fileId };
+    return { success: true, gastoId, fileId, fileSaveError };
   } catch (e) {
     Logger.log('Error en saveGasto: ' + e.message);
     Logger.log('Stack: ' + e.stack);
