@@ -1669,17 +1669,24 @@ function downloadFactura(facturaId) {
         // Generar contenido XML CFDI simulado
         const xmlContent = generateCFDIXML(factura);
         
-        // Generar PDF
-        const pdfBlob = generateInvoicePDF(factura);
-        const pdfBase64 = Utilities.base64Encode(pdfBlob.getBytes());
+        // Intentar generar PDF (puede fallar si no hay permisos)
+        let pdfBase64 = null;
+        let pdfName = null;
+        try {
+          const pdfBlob = generateInvoicePDF(factura);
+          pdfBase64 = Utilities.base64Encode(pdfBlob.getBytes());
+          pdfName = `Factura_${factura.folio || factura.id.substring(0, 8)}.pdf`;
+        } catch (pdfError) {
+          Logger.log('⚠️ PDF no disponible: ' + pdfError.message);
+        }
         
         return {
           success: true,
           factura: factura,
           xml: xmlContent,
           pdf: pdfBase64,
-          pdfName: `Factura_${factura.folio || factura.id.substring(0, 8)}.pdf`,
-          mensaje: 'Factura encontrada'
+          pdfName: pdfName,
+          mensaje: pdfBase64 ? 'Factura encontrada' : 'Factura encontrada (PDF no disponible)'
         };
       }
     }
@@ -1731,6 +1738,7 @@ function generateCFDIXML(factura) {
 
 /**
  * Genera un PDF de la factura en formato profesional
+ * Intenta usar HtmlService primero, luego DocumentApp como fallback
  */
 function generateInvoicePDF(factura) {
   const uuid = Utilities.getUuid();
@@ -1884,20 +1892,28 @@ function generateInvoicePDF(factura) {
 </body>
 </html>`;
   
-  // Create a temporary Google Doc and convert to PDF
-  const tempDoc = DocumentApp.create('TempInvoice_' + uuid);
-  const tempDocBody = tempDoc.getBody();
-  tempDocBody.setHtmlContent(htmlContent);
-  tempDoc.saveAndClose();
-  
-  // Get the document as PDF
-  const pdfBlob = tempDoc.getAs('application/pdf');
-  pdfBlob.setName(`Factura_${factura.folio || factura.id}.pdf`);
-  
-  // Delete the temporary document
-  DriveApp.getFileById(tempDoc.getId()).setTrashed(true);
-  
-  return pdfBlob;
+  // Try using HtmlService first (no extra permissions needed)
+  try {
+    const htmlOutput = HtmlService.createHtmlOutput(htmlContent);
+    const pdfBlob = htmlOutput.getAs('application/pdf');
+    pdfBlob.setName(`Factura_${factura.folio || factura.id}.pdf`);
+    return pdfBlob;
+  } catch (e) {
+    // Fallback: Try DocumentApp if HtmlService fails
+    try {
+      const tempDoc = DocumentApp.create('TempInvoice_' + uuid);
+      const tempDocBody = tempDoc.getBody();
+      tempDocBody.setHtmlContent(htmlContent);
+      tempDoc.saveAndClose();
+      const pdfBlob = tempDoc.getAs('application/pdf');
+      pdfBlob.setName(`Factura_${factura.folio || factura.id}.pdf`);
+      DriveApp.getFileById(tempDoc.getId()).setTrashed(true);
+      return pdfBlob;
+    } catch (e2) {
+      Logger.log('Error generating PDF: ' + e2.message);
+      throw new Error('PDF no disponible: ' + e2.message);
+    }
+  }
 }
 
 // =====================================================
