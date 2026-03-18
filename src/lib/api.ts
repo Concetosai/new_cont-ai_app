@@ -1,5 +1,5 @@
 // CONT-AI Google Apps Script Backend API
-const API_BASE = 'https://script.google.com/macros/s/AKfycbwePZdG8hTwEpw3_-O1PF0Cpt-YxaHFwjlc83kgiLNuzTuP7J_IrWbjTvv26Af48DSu/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbxSSNQBeG34yXwmgZNqh-qKx-lYrX9kzUQjefwXnNgqZFHPq4rm01ChhelWg8hWYJK_/exec';
 
 // Google OAuth Client ID (configurable - replace with your own)
 // To get your Client ID: https://console.cloud.google.com/apis/credentials
@@ -109,6 +109,38 @@ export const contAiApi = {
     });
     const url = `${API_BASE}?${params}`;
     const res = await fetch(url);
+    return res.json();
+  },
+
+  // Facturas CFDI
+  getFacturas: async (userId: string): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams({ api: 'get_facturas', userId });
+    const url = `${API_BASE}?${params}`;
+    const res = await fetch(url);
+    return res.json();
+  },
+
+  saveFactura: async (factura: {
+    userId: string;
+    clienteId: string;
+    monto: number;
+    status?: string;
+    rfcReceptor?: string;
+    nombreReceptor?: string;
+    usoCFDI?: string;
+    regimenFiscal?: string;
+    descripcion?: string;
+  }): Promise<ApiResponse<any>> => {
+    const url = API_BASE;
+    const body = JSON.stringify({
+      api: 'facturas_save',
+      ...factura
+    });
+    const res = await fetch(url, {
+      method: 'POST',
+      body: body,
+      redirect: 'follow'
+    });
     return res.json();
   },
 

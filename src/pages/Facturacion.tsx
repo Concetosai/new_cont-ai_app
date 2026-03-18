@@ -1,22 +1,157 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FileText, Send, Plus, CheckCircle, Clock, XCircle, Download } from "lucide-react";
+import { FileText, Send, Plus, CheckCircle, Clock, XCircle, Download, Loader2 } from "lucide-react";
+import { contAiApi } from "../lib/api";
+import { useToast } from "../hooks/use-toast";
 
-const invoices = [
-  { folio: "CFDI-2026-0042", cliente: "TechCorp MX", monto: "$12,500.00", fecha: "15/03/2026", status: "timbrada" },
-  { folio: "CFDI-2026-0041", cliente: "Grupo Innovación", monto: "$8,200.00", fecha: "12/03/2026", status: "pendiente" },
-  { folio: "CFDI-2026-0040", cliente: "SAPI de CV MXN", monto: "$21,000.00", fecha: "08/03/2026", status: "timbrada" },
-  { folio: "CFDI-2026-0039", cliente: "Consultores MX", monto: "$5,800.00", fecha: "05/03/2026", status: "cancelada" },
-];
+// Interface for Factura
+interface Factura {
+  id: string;
+  userId: string;
+  clienteId: string;
+  monto: number;
+  fecha: string;
+  status: "pagada" | "pendiente" | "timbrada" | "cancelada";
+  iva: number;
+  comision: number;
+  folio: string;
+  rfcReceptor?: string;
+  nombreReceptor?: string;
+  usoCFDI?: string;
+  regimenFiscal?: string;
+  descripcion?: string;
+}
 
 const statusConfig = {
   timbrada: { label: "Timbrada SAT", color: "hsl(145, 60%, 50%)", bg: "hsl(145 60% 40% / 0.1)", icon: CheckCircle },
   pendiente: { label: "Pendiente", color: "hsl(35, 95%, 55%)", bg: "hsl(35 95% 55% / 0.1)", icon: Clock },
+  pagada: { label: "Pagada", color: "hsl(145, 60%, 50%)", bg: "hsl(145 60% 40% / 0.1)", icon: CheckCircle },
   cancelada: { label: "Cancelada", color: "hsl(0, 72%, 55%)", bg: "hsl(0 72% 51% / 0.1)", icon: XCircle },
 };
 
+// Mock user ID for demo - in production, get from auth context
+const MOCK_USER_ID = "usuario-001";
+
 export default function Facturacion() {
   const [showNew, setShowNew] = useState(false);
+  const [invoices, setInvoices] = useState<Factura[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  // Form state
+  const [formData, setFormData] = useState({
+    rfcReceptor: "",
+    nombreReceptor: "",
+    usoCFDI: "G03",
+    regimenFiscal: "601",
+    descripcion: "",
+    monto: "",
+    clienteId: "",
+    status: "pendiente"
+  });
+
+  // Load invoices on mount
+  useEffect(() => {
+    loadFacturas();
+  }, []);
+
+  const loadFacturas = async () => {
+    try {
+      setLoading(true);
+      const response = await contAiApi.getFacturas(MOCK_USER_ID);
+      if (response.success && response.data) {
+        const facturas = response.data.facturas || [];
+        setInvoices(facturas);
+      }
+    } catch (error) {
+      console.error("Error loading facturas:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las facturas",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.rfcReceptor || !formData.nombreReceptor || !formData.monto) {
+      toast({
+        title: "Campos requeridos",
+        description: "Por favor completa RFC, Nombre y Monto",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      const response = await contAiApi.saveFactura({
+        userId: MOCK_USER_ID,
+        clienteId: formData.clienteId || `CLIENTE_${formData.rfcReceptor}`,
+        monto: parseFloat(formData.monto),
+        status: formData.status,
+        rfcReceptor: formData.rfcReceptor,
+        nombreReceptor: formData.nombreReceptor,
+        usoCFDI: formData.usoCFDI,
+        regimenFiscal: formData.regimenFiscal,
+        descripcion: formData.descripcion
+      });
+
+      if (response.success) {
+        toast({
+          title: "Factura guardada",
+          description: `Folio: ${response.data?.folio || 'N/A'}`,
+          variant: "default"
+        });
+        
+        // Reset form
+        setFormData({
+          rfcReceptor: "",
+          nombreReceptor: "",
+          usoCFDI: "G03",
+          regimenFiscal: "601",
+          descripcion: "",
+          monto: "",
+          clienteId: "",
+          status: "pendiente"
+        });
+        
+        // Close form and reload invoices
+        setShowNew(false);
+        loadFacturas();
+      } else {
+        throw new Error(response.error || "Error al guardar");
+      }
+    } catch (error) {
+      console.error("Error saving factura:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la factura",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN'
+    }).format(amount);
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -51,44 +186,178 @@ export default function Facturacion() {
           <h2 className="text-sm font-semibold" style={{ color: "hsl(195, 100%, 65%)" }}>
             Nueva Factura CFDI 4.0
           </h2>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { label: "RFC Receptor", placeholder: "ABC123456XYZ" },
-              { label: "Nombre / Razón Social", placeholder: "Empresa S.A. de C.V." },
-              { label: "Uso de CFDI", placeholder: "G03 - Gastos en general" },
-              { label: "Régimen Fiscal", placeholder: "601 - General Ley PF" },
-              { label: "Descripción", placeholder: "Servicios de consultoría" },
-              { label: "Monto", placeholder: "$0.00" },
-            ].map(field => (
-              <div key={field.label} className={field.label.includes("Descripción") ? "col-span-2" : ""}>
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
                 <label className="block text-xs mb-1.5 font-medium" style={{ color: "hsl(195, 60%, 65%)" }}>
-                  {field.label}
+                  RFC Receptor *
                 </label>
-                <input placeholder={field.placeholder}
+                <input
+                  name="rfcReceptor"
+                  value={formData.rfcReceptor}
+                  onChange={handleInputChange}
+                  placeholder="ABC123456XYZ"
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
                   style={{
                     background: "hsl(210 35% 8%)",
                     border: "1px solid hsl(210 30% 18%)",
                     color: "hsl(210, 20%, 85%)",
-                  }} />
+                  }}
+                />
               </div>
-            ))}
-          </div>
-          <div className="flex gap-3 pt-2">
-            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold"
-              style={{
-                background: "linear-gradient(135deg, hsl(195, 100%, 45%), hsl(220, 90%, 50%))",
-                color: "hsl(210, 50%, 5%)",
-              }}>
-              <Send className="w-3.5 h-3.5" />
-              Timbrar y Enviar al SAT
-            </motion.button>
-            <button onClick={() => setShowNew(false)} className="px-4 py-2.5 rounded-xl text-sm"
-              style={{ background: "hsl(210 35% 12%)", border: "1px solid hsl(210 30% 20%)", color: "hsl(210, 15%, 60%)" }}>
-              Cancelar
-            </button>
-          </div>
+              <div>
+                <label className="block text-xs mb-1.5 font-medium" style={{ color: "hsl(195, 60%, 65%)" }}>
+                  Nombre / Razón Social *
+                </label>
+                <input
+                  name="nombreReceptor"
+                  value={formData.nombreReceptor}
+                  onChange={handleInputChange}
+                  placeholder="Empresa S.A. de C.V."
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                  style={{
+                    background: "hsl(210 35% 8%)",
+                    border: "1px solid hsl(210 30% 18%)",
+                    color: "hsl(210, 20%, 85%)",
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5 font-medium" style={{ color: "hsl(195, 60%, 65%)" }}>
+                  Uso de CFDI
+                </label>
+                <select
+                  name="usoCFDI"
+                  value={formData.usoCFDI}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                  style={{
+                    background: "hsl(210 35% 8%)",
+                    border: "1px solid hsl(210 30% 18%)",
+                    color: "hsl(210, 20%, 85%)",
+                  }}
+                >
+                  <option value="G01">G01 - Adquisición de mercancias</option>
+                  <option value="G02">G02 - Devoluciones, descuentos o bonificaciones</option>
+                  <option value="G03">G03 - Gastos en general</option>
+                  <option value="I01">I01 - Construcciones</option>
+                  <option value="I02">I02 - Mobilario y equipo de oficina</option>
+                  <option value="I03">I03 - Equipo de transporte</option>
+                  <option value="I04">I04 - Equipo de computo</option>
+                  <option value="I05">I05 - Dados, troqueles, moldes</option>
+                  <option value="I06">I06 - Refacciones</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5 font-medium" style={{ color: "hsl(195, 60%, 65%)" }}>
+                  Régimen Fiscal
+                </label>
+                <select
+                  name="regimenFiscal"
+                  value={formData.regimenFiscal}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                  style={{
+                    background: "hsl(210 35% 8%)",
+                    border: "1px solid hsl(210 30% 18%)",
+                    color: "hsl(210, 20%, 85%)",
+                  }}
+                >
+                  <option value="601">601 - General Ley Personas Morales</option>
+                  <option value="603">603 - Personas Morales con fines no lucrativos</option>
+                  <option value="605">605 - Sueldos y salarios</option>
+                  <option value="606">606 - Arrendamiento</option>
+                  <option value="607">607 - Regimen de actividades empresariales</option>
+                  <option value="608">608 - Ingresos por intereses</option>
+                  <option value="610">610 - Residentes en el extranjero</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs mb-1.5 font-medium" style={{ color: "hsl(195, 60%, 65%)" }}>
+                  Descripción
+                </label>
+                <input
+                  name="descripcion"
+                  value={formData.descripcion}
+                  onChange={handleInputChange}
+                  placeholder="Servicios de consultoría"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                  style={{
+                    background: "hsl(210 35% 8%)",
+                    border: "1px solid hsl(210 30% 18%)",
+                    color: "hsl(210, 20%, 85%)",
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5 font-medium" style={{ color: "hsl(195, 60%, 65%)" }}>
+                  Monto *
+                </label>
+                <input
+                  name="monto"
+                  type="number"
+                  step="0.01"
+                  value={formData.monto}
+                  onChange={handleInputChange}
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                  style={{
+                    background: "hsl(210 35% 8%)",
+                    border: "1px solid hsl(210 30% 18%)",
+                    color: "hsl(210, 20%, 85%)",
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5 font-medium" style={{ color: "hsl(195, 60%, 65%)" }}>
+                  Status
+                </label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                  style={{
+                    background: "hsl(210 35% 8%)",
+                    border: "1px solid hsl(210 30% 18%)",
+                    color: "hsl(210, 20%, 85%)",
+                  }}
+                >
+                  <option value="pendiente">Pendiente</option>
+                  <option value="pagada">Pagada</option>
+                  <option value="timbrada">Timbrada</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <motion.button
+                type="submit"
+                disabled={saving}
+                whileHover={{ scale: saving ? 1 : 1.03 }}
+                whileTap={{ scale: saving ? 1 : 0.97 }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50"
+                style={{
+                  background: "linear-gradient(135deg, hsl(195, 100%, 45%), hsl(220, 90%, 50%))",
+                  color: "hsl(210, 50%, 5%)",
+                }}
+              >
+                {saving ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                {saving ? "Guardando..." : "Timbrar y Enviar al SAT"}
+              </motion.button>
+              <button 
+                type="button"
+                onClick={() => setShowNew(false)} 
+                className="px-4 py-2.5 rounded-xl text-sm"
+                style={{ background: "hsl(210 35% 12%)", border: "1px solid hsl(210 30% 20%)", color: "hsl(210, 15%, 60%)" }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
         </motion.div>
       )}
 
@@ -101,33 +370,47 @@ export default function Facturacion() {
           </h2>
         </div>
         <div className="divide-y" style={{ borderColor: "hsl(210 30% 12%)" }}>
-          {invoices.map((inv, i) => {
-            const cfg = statusConfig[inv.status as keyof typeof statusConfig];
-            return (
-              <motion.div key={i}
-                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.07 }}
-                className="flex items-center gap-4 px-4 py-3 hover:bg-primary/5 transition-colors">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: "hsl(210 35% 12%)" }}>
-                  <FileText className="w-4 h-4" style={{ color: "hsl(195, 100%, 55%)" }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium" style={{ color: "hsl(210, 20%, 85%)" }}>{inv.folio}</p>
-                  <p className="text-xs" style={{ color: "hsl(210, 15%, 50%)" }}>{inv.cliente} · {inv.fecha}</p>
-                </div>
-                <span className="text-sm font-bold" style={{ color: "hsl(210, 20%, 90%)" }}>{inv.monto}</span>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs"
-                  style={{ background: cfg.bg, border: `1px solid ${cfg.color}30`, color: cfg.color }}>
-                  <cfg.icon className="w-3 h-3" />
-                  {cfg.label}
-                </div>
-                <button className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-primary/10"
-                  style={{ color: "hsl(210, 15%, 50%)" }}>
-                  <Download className="w-3.5 h-3.5" />
-                </button>
-              </motion.div>
-            );
-          })}
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin" style={{ color: "hsl(195, 100%, 50%)" }} />
+            </div>
+          ) : invoices.length === 0 ? (
+            <div className="text-center py-8" style={{ color: "hsl(210, 15%, 50%)" }}>
+              No hay facturas registradas
+            </div>
+          ) : (
+            invoices.map((inv, i) => {
+              const cfg = statusConfig[inv.status as keyof typeof statusConfig] || statusConfig.pendiente;
+              return (
+                <motion.div key={inv.id}
+                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.07 }}
+                  className="flex items-center gap-4 px-4 py-3 hover:bg-primary/5 transition-colors">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: "hsl(210 35% 12%)" }}>
+                    <FileText className="w-4 h-4" style={{ color: "hsl(195, 100%, 55%)" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{ color: "hsl(210, 20%, 85%)" }}>{inv.folio}</p>
+                    <p className="text-xs" style={{ color: "hsl(210, 15%, 50%)" }}>
+                      {inv.nombreReceptor || inv.clienteId} · {inv.fecha}
+                    </p>
+                  </div>
+                  <span className="text-sm font-bold" style={{ color: "hsl(210, 20%, 90%)" }}>
+                    {formatCurrency(inv.monto)}
+                  </span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs"
+                    style={{ background: cfg.bg, border: `1px solid ${cfg.color}30`, color: cfg.color }}>
+                    <cfg.icon className="w-3 h-3" />
+                    {cfg.label}
+                  </div>
+                  <button className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-primary/10"
+                    style={{ color: "hsl(210, 15%, 50%)" }}>
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
+                </motion.div>
+              );
+            })
+          )}
         </div>
       </motion.div>
     </div>

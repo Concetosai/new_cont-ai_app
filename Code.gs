@@ -344,7 +344,18 @@ function handleRequest(e, method) {
         const mensajeData = JSON.parse(e.postData.contents);
         result = enviarMensaje(mensajeData);
         break;
-        
+
+      // ========== FACTURAS ==========
+      case 'facturas_save':
+        const facturaSaveData = postDataContents ? JSON.parse(postDataContents) : {};
+        result = saveFactura(facturaSaveData);
+        break;
+
+      case 'get_facturas':
+        const userIdFacturas = e.parameter.userId;
+        result = getFacturas(userIdFacturas);
+        break;
+
       default:
         throw new Error(`API "${api}" no implementada`);
     }
@@ -1459,6 +1470,154 @@ function importarVentas(ventasData) {
   }
   
   return { success: true, importedCount: 5 };
+}
+
+// =====================================================
+// FUNCIONES DE NEGOCIO - FACTURAS CFDI
+// =====================================================
+
+/**
+ * Guarda una nueva factura en la hoja de Facturas
+ * @param {Object} facturaData - Datos de la factura
+ * Expected: { userId, clienteId, monto, status, rfcReceptor, nombreReceptor, usoCFDI, regimenFiscal, descripcion }
+ */
+function saveFactura(facturaData) {
+  try {
+    Logger.log('=== saveFactura function ===');
+    Logger.log('facturaData: ' + JSON.stringify(facturaData));
+    
+    const ss = SpreadsheetApp.getActive();
+    const facturasSheet = ss.getSheetByName(SHEETS.FACTURAS);
+    
+    if (!facturasSheet) {
+      throw new Error('Hoja de Facturas no encontrada');
+    }
+    
+    const userId = facturaData.userId;
+    const clienteId = facturaData.clienteId || 'CLIENTE_' + Utilities.getUuid().substring(0, 8);
+    const monto = parseFloat(facturaData.monto) || 0;
+    const status = facturaData.status || 'pendiente';
+    const iva = monto * 0.16;
+    const comision = monto * 0.1;
+    const fecha = facturaData.fecha ? new Date(facturaData.fecha) : new Date();
+    
+    // Generar folio único
+    const year = fecha.getFullYear();
+    const lastRow = facturasSheet.getLastRow();
+    const folioNum = lastRow > 1 ? lastRow : 1;
+    const folio = `CFDI-${year}-${String(folioNum).padStart(4, '0')}`;
+    
+    // Guardar en la hoja: ID | UserID | ClienteID | Monto | Fecha | Status | IVA | Comision | Folio | RFC | Nombre | UsoCFDI | Regimen | Descripcion
+    facturasSheet.appendRow([
+      Utilities.getUuid(),
+      userId,
+      clienteId,
+      monto,
+      fecha,
+      status,
+      iva,
+      comision,
+      folio,
+      facturaData.rfcReceptor || '',
+      facturaData.nombreReceptor || '',
+      facturaData.usoCFDI || 'G03',
+      facturaData.regimenFiscal || '601',
+      facturaData.descripcion || ''
+    ]);
+    
+    Logger.log('✅ Factura guardada exitosamente');
+    Logger.log('Folio: ' + folio);
+    
+    return {
+      success: true,
+      message: 'Factura guardada exitosamente',
+      folio: folio,
+      data: {
+        id: Utilities.getUuid(),
+        userId,
+        clienteId,
+        monto,
+        fecha: fecha.toISOString(),
+        status,
+        iva,
+        comision,
+        folio
+      }
+    };
+    
+  } catch (e) {
+    Logger.log('Error en saveFactura: ' + e.message);
+    Logger.log('Stack: ' + e.stack);
+    return {
+      success: false,
+      error: e.message
+    };
+  }
+}
+
+/**
+ * Obtiene todas las facturas de un usuario
+ * @param {string} userId - ID del usuario
+ */
+function getFacturas(userId) {
+  try {
+    Logger.log('=== getFacturas function ===');
+    Logger.log('userId: ' + userId);
+    
+    const ss = SpreadsheetApp.getActive();
+    const facturasSheet = ss.getSheetByName(SHEETS.FACTURAS);
+    
+    if (!facturasSheet) {
+      throw new Error('Hoja de Facturas no encontrada');
+    }
+    
+    const data = facturasSheet.getDataRange().getValues();
+    const facturas = [];
+    
+    // Skip header row
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      // Column A: ID, B: UserID, C: ClienteID, D: Monto, E: Fecha, F: Status, G: IVA, H: Comision, I: Folio
+      if (row[1] == userId) {
+        facturas.push({
+          id: row[0],
+          userId: row[1],
+          clienteId: row[2],
+          monto: row[3],
+          fecha: row[4] instanceof Date ? Utilities.formatDate(row[4], 'GMT-6', 'dd/MM/yyyy HH:mm') : row[4],
+          status: row[5],
+          iva: row[6],
+          comision: row[7],
+          folio: row[8] || '',
+          rfcReceptor: row[9] || '',
+          nombreReceptor: row[10] || '',
+          usoCFDI: row[11] || 'G03',
+          regimenFiscal: row[12] || '601',
+          descripcion: row[13] || ''
+        });
+      }
+    }
+    
+    // Sort by date descending (most recent first)
+    facturas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    
+    Logger.log('✅ Facturas recuperadas: ' + facturas.length);
+    
+    return {
+      success: true,
+      facturas: facturas,
+      total: facturas.length
+    };
+    
+  } catch (e) {
+    Logger.log('Error en getFacturas: ' + e.message);
+    Logger.log('Stack: ' + e.stack);
+    return {
+      success: false,
+      error: e.message,
+      facturas: []
+    };
+  }
 }
 
 // =====================================================
