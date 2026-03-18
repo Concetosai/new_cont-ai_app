@@ -1,5 +1,5 @@
 // CONT-AI Google Apps Script Backend API
-const API_BASE = 'https://script.google.com/macros/s/AKfycbxSSNQBeG34yXwmgZNqh-qKx-lYrX9kzUQjefwXnNgqZFHPq4rm01ChhelWg8hWYJK_/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbyGYapAbtzOHPmqeiSCJHqHxjjr4m8ixHM2dVPgvkXvEnPPkEYDPW2u1wKij9nue9oC/exec';
 
 // Google OAuth Client ID (configurable - replace with your own)
 // To get your Client ID: https://console.cloud.google.com/apis/credentials
@@ -145,10 +145,20 @@ export const contAiApi = {
   },
 
   downloadFactura: async (facturaId: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'download_factura', facturaId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
+    try {
+      const params = new URLSearchParams({ api: 'download_factura', facturaId });
+      const url = `${API_BASE}?${params}`;
+      const res = await fetch(url);
+      
+      if (!res.ok) {
+        return { success: false, error: `HTTP error: ${res.status}` };
+      }
+      
+      return res.json();
+    } catch (error: any) {
+      console.error('downloadFactura API error:', error);
+      return { success: false, error: error.message || 'Network error' };
+    }
   },
 
   // Chat Contador

@@ -148,9 +148,13 @@ export default function Facturacion() {
 
   const handleDownload = async (facturaId: string, folio: string) => {
     try {
-      const response = await contAiApi.downloadFactura(facturaId);
+      console.log('Downloading factura with ID:', facturaId);
       
-      if (response.success && response.data && response.data.xml) {
+      const response = await contAiApi.downloadFactura(facturaId);
+      console.log('Download response:', response);
+      
+      // Check for nested success (backend wraps responses with { success, data })
+      if (response.success && response.data && response.data.success && response.data.xml) {
         // Create a blob and download as XML file
         const xmlContent = response.data.xml;
         const blob = new Blob([xmlContent], { type: 'application/xml' });
@@ -171,7 +175,10 @@ export default function Facturacion() {
           variant: "default"
         });
       } else {
-        throw new Error(response.data?.error || 'Error al descargar');
+        // Handle error case - check both nested and top-level error messages
+        const errorMsg = response.data?.error || response.error || 'Error al descargar';
+        console.error('Download error:', errorMsg);
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error('Error downloading factura:', error);
