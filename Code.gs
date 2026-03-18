@@ -1201,9 +1201,21 @@ function saveGasto(gastoData) {
       Logger.log('userId: ' + gastoData.userId);
 
       try {
-        // Decodificar base64
-        const blob = Utilities.base64Decode(gastoData.fileData);
-        Logger.log('Blob created, size: ' + blob.length);
+        // Determinar tipo de archivo primero
+        let contentType = 'image/jpeg';
+        if (gastoData.fileType && gastoData.fileType.includes('pdf')) {
+          contentType = 'application/pdf';
+        }
+        const extension = contentType === 'application/pdf' ? '.pdf' : '.jpg';
+        const fileName = 'gasto_' + gastoId + '_' + Date.now() + extension;
+        
+        // Decodificar base64 y crear blob
+        const decoded = Utilities.base64Decode(gastoData.fileData);
+        Logger.log('Decoded size: ' + decoded.length);
+        
+        // Crear Blob desde el arreglo de bytes
+        const blob = Utilities.newBlob(decoded, contentType, fileName);
+        Logger.log('Blob created: ' + fileName + ' (' + contentType + ')');
 
         // Usar siempre la carpeta principal como fallback
         let folder;
@@ -1225,17 +1237,10 @@ function saveGasto(gastoData) {
           folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
         }
         
-        // Determinar tipo de archivo
-        let contentType = 'image/jpeg';
-        if (gastoData.fileType && gastoData.fileType.includes('pdf')) {
-          contentType = 'application/pdf';
-        }
-        const extension = contentType === 'application/pdf' ? '.pdf' : '.jpg';
-        
-        const fileName = 'gasto_' + gastoId + '_' + Date.now() + extension;
         Logger.log('Creating file: ' + fileName);
         
-        const file = folder.createFile(blob, fileName, contentType);
+        // Crear archivo - usar solo el blob
+        const file = folder.createFile(blob);
         fileId = file.getId();
         Logger.log('✅ File saved! ID: ' + fileId);
         Logger.log('✅ URL: https://drive.google.com/uc?id=' + fileId + '&export=download');
