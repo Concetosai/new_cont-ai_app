@@ -1695,7 +1695,7 @@ function downloadFactura(facturaId) {
 function generateCFDIXML(factura) {
   const uuid = Utilities.getUuid();
   const fecha = new Date();
-  const fechaStr = Utilities.formatDate(fecha, 'GMT-6', 'yyyy-MM-dd'T'HH:mm:ss');
+  const fechaStr = Utilities.formatDate(fecha, 'GMT-6', "yyyy-MM-dd'T'HH:mm:ss");
   const noCertificado = '00001000000400000000';
   const sello = 'SIMULADO_SELLO_CFDI' + uuid;
   
