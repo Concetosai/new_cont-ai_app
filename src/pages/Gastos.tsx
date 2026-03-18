@@ -436,9 +436,10 @@ export default function Gastos() {
       console.log('Respuesta del backend:', response);
 
       if (response.success) {
-        // Guardar fileId para mostrar enlace
+        // Guardar fileId para mostrar enlace - verificar ambas rutas
         const responseData = response as any;
-        const fileId = responseData.data?.fileId || responseData.fileId || null;
+        // La respuesta del backend está anidada: response.data.data.fileId
+        const fileId = responseData.data?.fileId || responseData.data?.data?.fileId || null;
         setSavedFileId(fileId);
 
         console.log('✅ Gasto guardado correctamente, fileId:', fileId);
