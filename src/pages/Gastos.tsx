@@ -443,6 +443,10 @@ export default function Gastos() {
 
         console.log('✅ Gasto guardado correctamente, fileId:', fileId);
         toast.success("Gasto guardado correctamente");
+        
+        // Recargar el historial después de guardar
+        loadGastosHistory();
+        
         // Limpiar después de un momento
         setTimeout(() => {
           setFile(null);

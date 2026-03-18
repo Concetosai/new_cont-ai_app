@@ -1164,7 +1164,7 @@ function saveGasto(gastoData) {
     const sheet = ss.getSheetByName(SHEETS.GASTOS);
 
     if (!sheet) {
-      Logger.log('Hoja Gastos no encontrada');
+      Logger.log('ERROR: Hoja Gastos no encontrada');
       return { success: false, error: 'Hoja Gastos no encontrada' };
     }
 
@@ -1175,50 +1175,60 @@ function saveGasto(gastoData) {
     Logger.log('gastoId: ' + gastoId);
     Logger.log('userId: ' + gastoData.userId);
     Logger.log('fileData exists: ' + (gastoData.fileData ? 'YES' : 'NO'));
+    Logger.log('fileData length: ' + (gastoData.fileData ? gastoData.fileData.length : 0));
 
     // Si hay archivo adjunto, guardarlo en la carpeta personal del usuario
-    if (gastoData.fileData) {
+    if (gastoData.fileData && gastoData.fileData.length > 0) {
       Logger.log('Attempting to save file to Drive...');
 
       try {
         // Decodificar base64
         const blob = Utilities.base64Decode(gastoData.fileData);
-        Logger.log('Base64 decoded, blob size: ' + blob.length);
+        Logger.log('Base64 decoded, blob size: ' + blob.length + ' bytes');
 
         // Obtener el ID de la carpeta del usuario
+        Logger.log('Buscando carpeta para userId: ' + gastoData.userId);
         const carpetaId = getUserCarpetaId(gastoData.userId);
+        Logger.log('CarpetaID encontrado: ' + (carpetaId || 'NULL'));
 
         try {
-          if (carpetaId) {
+          if (carpetaId && carpetaId !== '') {
+            Logger.log('Creando archivo en carpeta de usuario: ' + carpetaId);
             const folder = DriveApp.getFolderById(carpetaId);
-            const file = folder.createFile(blob, `gasto_${gastoId}.jpg`);
+            const fileName = `gasto_${gastoId}.jpg`;
+            const file = folder.createFile(blob, fileName);
             fileId = file.getId();
-            Logger.log('File saved to user folder, fileId: ' + fileId);
+            Logger.log('File saved to user folder!');
+            Logger.log('FileId: ' + fileId);
+            Logger.log('URL: https://drive.google.com/file/d/' + fileId);
           } else {
-            // Fallback a la carpeta general si no se encuentra la personal
             Logger.log('No user folder found, using general folder');
+            Logger.log('DRIVE_FOLDER_ID: ' + DRIVE_FOLDER_ID);
             const folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
-            const file = folder.createFile(blob, `gasto_${gastoId}.jpg`);
+            const fileName = `gasto_${gastoId}.jpg`;
+            const file = folder.createFile(blob, fileName);
             fileId = file.getId();
-            Logger.log('File saved to general folder, fileId: ' + fileId);
+            Logger.log('File saved to general folder!');
+            Logger.log('FileId: ' + fileId);
           }
         } catch (driveError) {
           Logger.log('Drive error: ' + driveError.message);
-          // Si falla Drive, continuar sin guardar la imagen
+          Logger.log('Stack: ' + driveError.stack);
           Logger.log('Continuando sin guardar imagen en Drive');
         }
       } catch (e) {
         Logger.log('Error processing file: ' + e.message);
+        Logger.log('Stack: ' + e.stack);
         Logger.log('Continuando sin guardar imagen');
       }
     } else {
-      Logger.log('No fileData provided, skipping file save');
+      Logger.log('No fileData provided or empty, skipping file save');
     }
 
-    // Agregar fila con columnas actualizadas:
-    // FileID | UserID | monto | categoria | fecha | rfc | status | proveedor | folio
+    // Agregar fila con columnas actualizadas
+    Logger.log('Guardando gasto en Sheets...');
     sheet.appendRow([
-      gastoId,                                    // Columna A: FileID (ID del gasto)
+      gastoId,                                    // Columna A: FileID
       gastoData.userId,                           // Columna B: UserID
       gastoData.monto,                            // Columna C: monto
       gastoData.categoria,                        // Columna D: categoria
@@ -1226,10 +1236,10 @@ function saveGasto(gastoData) {
       gastoData.rfc,                              // Columna F: rfc
       gastoData.status || 'pending',              // Columna G: status
       gastoData.proveedor || '',                  // Columna H: proveedor
-      gastoData.folio || ''                       // Columna I: folio/referencia
+      gastoData.folio || ''                       // Columna I: folio
     ]);
-
-    Logger.log('Gasto saved to sheet, fileId: ' + fileId);
+    Logger.log('Gasto saved to sheet!');
+    Logger.log('Final fileId: ' + fileId);
     Logger.log('==============================');
 
     return { success: true, gastoId, fileId };
