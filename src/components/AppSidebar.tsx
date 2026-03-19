@@ -1,5 +1,6 @@
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useSidebar } from "@/components/ui/sidebar";
 import {
   Sidebar,
@@ -88,7 +89,7 @@ export function AppSidebar() {
         borderRight: "1px solid hsl(210, 30%, 12%)"
       }}>
 
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="p-4 space-y-3">
         <div className="flex items-center gap-3 overflow-hidden">
           <img src={contAiLogo} alt="CONT-AI" className="w-8 h-8 object-contain flex-shrink-0" />
           {!collapsed && (
@@ -103,6 +104,22 @@ export function AppSidebar() {
             </div>
           )}
         </div>
+
+        {userRole === 'contador' && !collapsed && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider"
+            style={{ 
+              background: "hsl(145 60% 40% / 0.1)", 
+              border: "1px solid hsl(145 60% 40% / 0.3)",
+              color: "hsl(145, 60%, 65%)" 
+            }}
+          >
+            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_hsl(145,60%,50%)]" />
+            VINCULACIÓN SMART ACTIVA
+          </motion.div>
+        )}
       </SidebarHeader>
 
       {!collapsed && <div className="vein-line mx-4 mb-2" />}

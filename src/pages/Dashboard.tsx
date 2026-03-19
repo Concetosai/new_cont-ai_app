@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { motion, type Variants } from "framer-motion";
 import { Link } from "react-router-dom";
 import { DollarSign, Users, Clock, TrendingUp, AlertTriangle, CheckCircle, ArrowUpRight, ArrowDownRight, Zap, FileText, Brain, ShoppingCart, AlertCircle, Calculator, Shield } from "lucide-react";
+import contAiApi from "@/lib/api";
 
 const kpis = [
   { label: "Saldo Total", value: "$248,500", change: "+12.4%", up: true, icon: DollarSign, color: "hsl(195, 100%, 50%)" },
@@ -35,14 +37,66 @@ const item: Variants = {
 };
 
 export default function Dashboard() {
+  const [role, setRole] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [linkedClients, setLinkedClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const userRole = localStorage.getItem('userRole');
+    const uId = localStorage.getItem('userId');
+    setRole(userRole);
+    setUserId(uId);
+
+    if (uId && userRole === 'contador') {
+      loadClients(uId);
+    }
+  }, []);
+
+  const loadClients = async (uId: string) => {
+    setLoading(true);
+    try {
+      const result = await contAiApi.getLinkedClients(uId);
+      if (result.success && result.data) {
+        setLinkedClients(result.data);
+      }
+    } catch (error) {
+      console.error('Error loading clients for dashboard:', error);
+    }
+    setLoading(false);
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Page header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <h1 className="text-2xl font-bold" style={{ color: "hsl(210, 20%, 90%)" }}>Panel General</h1>
-        <p className="text-sm mt-1" style={{ color: "hsl(210, 15%, 50%)" }}>
-          Resumen financiero en tiempo real + Acceso rápido a funciones IA
-        </p>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold" style={{ color: "hsl(210, 20%, 90%)" }}>
+              {role === 'contador' ? 'Panel de Control Contador' : 'Panel General'}
+            </h1>
+            <p className="text-sm mt-1" style={{ color: "hsl(210, 15%, 50%)" }}>
+              {role === 'contador' 
+                ? 'Monitorea el estado fiscal y gastos de todos tus clientes vinculados' 
+                : 'Resumen financiero en tiempo real + Acceso rápido a funciones IA'}
+            </p>
+          </div>
+
+          {role === 'contador' && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center gap-3 px-4 py-2 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-bold text-xs"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                <span>TERMINAL DE CONEXIÓN ACTIVA</span>
+              </div>
+              <div className="w-px h-4 bg-emerald-500/30 mx-1" />
+              <span>{linkedClients.length} CLIENTES EN LÍNEA</span>
+            </motion.div>
+          )}
+        </div>
         <div className="vein-line w-48 mt-3" />
       </motion.div>
 
@@ -67,7 +121,7 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="text-2xl font-bold mb-1" style={{ color: "hsl(210, 20%, 92%)" }}>
-              {kpi.value}
+              {(role === 'contador' && kpi.label === "Clientes Activos") ? linkedClients.length : kpi.value}
             </div>
             <div className="text-xs" style={{ color: "hsl(210, 15%, 50%)" }}>{kpi.label}</div>
           </motion.div>

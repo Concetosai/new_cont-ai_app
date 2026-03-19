@@ -2,17 +2,21 @@ import { motion } from "framer-motion";
 import { Settings, Shield, Mail, User, Zap, QrCode, Copy, ArrowRight, Download, Sun, Moon, Lock, KeyRound, Check, Eye, EyeOff, Users, CheckCircle } from "lucide-react";
 
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import contAiApi from "@/lib/api";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { useTheme } from "@/hooks/useTheme";
 import { toast } from "sonner";
 
 export default function UserSettings() {
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [contadorInfo, setContadorInfo] = useState<any>(null);
   const [contadorCode, setContadorCode] = useState<string>('');
+  const [linkedClients, setLinkedClients] = useState<any[]>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
   
   // Password change state
@@ -30,11 +34,28 @@ export default function UserSettings() {
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
+    const role = localStorage.getItem('userRole');
     if (userId) {
       loadSettings(userId);
-      loadContadorCode(userId);
+      if (role === 'contador') {
+        loadContadorCode(userId);
+        loadLinkedClients(userId);
+      }
     }
   }, []);
+
+  const loadLinkedClients = async (contadorId: string) => {
+    setLoadingClients(true);
+    try {
+      const result = await contAiApi.getLinkedClients(contadorId);
+      if (result.success && result.data) {
+        setLinkedClients(result.data);
+      }
+    } catch (error) {
+      console.error('Error loading linked clients:', error);
+    }
+    setLoadingClients(false);
+  };
 
   const loadContadorCode = async (userId: string) => {
     try {
@@ -450,41 +471,67 @@ const handleChangePassword = async () => {
           </p>
           
           <div className="space-y-3">
-            {[
-              { id: 'CLI001', nombre: 'Juan Pérez', code: 'CL-JP001', status: 'activo', joined: '15 Mar 2024' },
-              { id: 'CLI002', nombre: 'María González', code: 'CL-MG002', status: 'activo', joined: '10 Mar 2024' },
-              { id: 'CLI003', nombre: 'Carlos López', code: 'CL-CL003', status: 'pendiente', joined: '12 Mar 2024' }
-            ].map((cliente) => (
-              <div key={cliente.id} className="flex items-center justify-between p-4 rounded-xl border-l-4 border-blue-500/30 bg-slate-800/30 hover:bg-slate-800/50 transition-all">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center font-semibold text-xs"
-                    style={{ background: "hsl(195 100% 50% / 0.15)", color: "hsl(195, 100%, 60%)" }}>
-                    {cliente.nombre.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm" style={{ color: "hsl(210, 20%, 85%)" }}>{cliente.nombre}</p>
-                    <p className="text-xs font-mono" style={{ color: "hsl(210, 15%, 55%)" }}>Código Cliente: {cliente.code}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className={`px-2 py-1 rounded-full font-medium ${
-                    cliente.status === 'activo' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                    'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                  }`}>
-                    {cliente.status}
-                  </span>
-                  <span style={{ color: "hsl(210, 15%, 45%)" }}>{cliente.joined}</span>
-                </div>
-                <div className="flex gap-1">
-                  <button className="p-2 rounded-lg hover:bg-slate-700/50 transition-all text-slate-400 hover:text-slate-200">
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 rounded-lg hover:bg-slate-700/50 transition-all text-slate-400 hover:text-slate-200">
-                    <Copy className="w-4 h-4" />
-                  </button>
-                </div>
+            {loadingClients ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <p className="text-sm text-slate-500">Cargando clientes...</p>
               </div>
-            ))}
+            ) : linkedClients.length > 0 ? (
+              linkedClients.map((cliente) => (
+                <div 
+                  key={cliente.id} 
+                  className="flex items-center justify-between p-4 rounded-xl border-l-4 border-blue-500/30 bg-slate-800/30 hover:bg-slate-800/50 transition-all cursor-pointer group"
+                  onClick={() => navigate(`/client/${cliente.id}/dashboard`)}
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center font-semibold text-xs transition-transform group-hover:scale-110"
+                      style={{ background: "hsl(195 100% 50% / 0.15)", color: "hsl(195, 100%, 60%)" }}>
+                      {cliente.nombre.split(' ').map((n: string) => n[0]).join('')}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm" style={{ color: "hsl(210, 20%, 85%)" }}>{cliente.nombre}</p>
+                      <p className="text-xs font-mono" style={{ color: "hsl(210, 15%, 55%)" }}>RFC: {cliente.rfc || 'Sin RFC'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className={`px-2 py-1 rounded-full font-medium ${
+                      cliente.status === 'activo' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                      'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    }`}>
+                      {cliente.status}
+                    </span>
+                    <span style={{ color: "hsl(210, 15%, 45%)" }}>{cliente.linkedAt}</span>
+                  </div>
+                  <div className="flex gap-1 ml-4" onClick={(e) => e.stopPropagation()}>
+                    <button 
+                      onClick={() => navigate(`/client/${cliente.id}/dashboard`)}
+                      className="p-2 rounded-lg hover:bg-blue-500/20 transition-all text-blue-400 hover:text-blue-200"
+                      title="Ver Dashboard"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(cliente.id);
+                        toast.success('ID de cliente copiado');
+                      }}
+                      className="p-2 rounded-lg hover:bg-slate-700/50 transition-all text-slate-400 hover:text-slate-200"
+                      title="Copiar ID"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-12 border-2 border-dashed border-slate-700 rounded-2xl">
+                <Users className="w-12 h-12 mx-auto mb-4 text-slate-600" />
+                <h3 className="text-lg font-bold mb-2 text-slate-300">No hay clientes vinculados</h3>
+                <p className="text-sm text-slate-500 mb-6 px-4">
+                  Comparte tu código QR arriba para que tus clientes se vinculen contigo. Recibirás una notificación cuando alguien se conecte.
+                </p>
+              </div>
+            )}
           </div>
 
           {false && ( // Empty state if no clients

@@ -145,10 +145,14 @@ export default function Clients() {
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {clients.map((client) => (
-                <tr key={client.id} className="hover:bg-slate-800/30 transition-all">
+                <tr 
+                  key={client.id} 
+                  className="hover:bg-slate-800/50 transition-all cursor-pointer group"
+                  onClick={() => viewClientDashboard(client.id)}
+                >
                   <td className="py-4 pr-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs"
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs transition-transform group-hover:scale-110"
                         style={{ background: "hsl(195 100% 50% / 0.15)", color: "hsl(195, 100%, 60%)" }}>
                         {client.nombre.split(' ').map(n => n[0]).join('')}
                       </div>
@@ -184,7 +188,7 @@ export default function Clients() {
                   <td className="py-4 px-4 font-semibold text-sm" style={{ color: "hsl(210, 20%, 85%)" }}>
                     {client.gastosCount.toLocaleString()}
                   </td>
-                  <td className="py-4 pl-4">
+                  <td className="py-4 pl-4" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1">
                       <button 
                         onClick={() => copyCode(client.code)}
