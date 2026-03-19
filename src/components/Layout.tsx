@@ -2,9 +2,33 @@ import { Outlet } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AIAssistant } from "@/components/AIAssistant";
-import { Menu } from "lucide-react";
+import { Menu, ShieldCheck } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useTheme } from "@/hooks/useTheme";
+import { useEffect, useState } from "react";
+import contAiApi from "@/lib/api";
 
 export function Layout() {
+  const { theme, toggleTheme } = useTheme();
+  const [hasContador, setHasContador] = useState(false);
+
+  useEffect(() => {
+    const userId = localStorage.getItem('userId');
+    if (userId) {
+      checkContadorLink(userId);
+    }
+  }, []);
+
+  const checkContadorLink = async (userId: string) => {
+    try {
+      const result = await contAiApi.getUserSettings(userId);
+      if (result.success && result.data?.linkedContador) {
+        setHasContador(true);
+      }
+    } catch (error) {
+      console.error('Error checking contador link:', error);
+    }
+  };
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full relative"
@@ -33,6 +57,16 @@ export function Layout() {
             <div className="vein-line flex-1" style={{ maxWidth: "200px" }} />
 
             <div className="ml-auto flex items-center gap-2">
+              {/* Línea Verde Indicator */}
+              {hasContador && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-medium hidden lg:inline">Línea Verde Activa</span>
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                </div>
+              )}
+
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
                 style={{
                   background: "hsl(195 100% 50% / 0.1)",
@@ -41,6 +75,20 @@ export function Layout() {
                 }}>
                 <div className="w-1.5 h-1.5 rounded-full bg-primary animate-glow-pulse" />
                 <span className="font-medium">Sistema Activo</span>
+              </div>
+              
+              <div className="flex items-center gap-2 p-2 rounded-lg border transition-all"
+                style={{
+                  background: "hsl(var(--sidebar-background) / 0.5)",
+                  borderColor: "hsl(var(--border))"
+                }}>
+                <label className="sr-only" htmlFor="theme-toggle">Toggle theme</label>
+                <Switch 
+                  id="theme-toggle"
+                  checked={theme === 'dark'}
+                  onCheckedChange={toggleTheme}
+                  className="data-[state=checked]:bg-primary"
+                />
               </div>
             </div>
           </header>

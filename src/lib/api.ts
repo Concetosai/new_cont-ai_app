@@ -1,5 +1,5 @@
 // CONT-AI Google Apps Script Backend API
-const API_BASE = 'https://script.google.com/macros/s/AKfycbw-1IL19-lRFakagBxuebyeEMmHtxC_F0E8w0MzdlJWC0UJ2yiSRp0UuO7NqbQ0L2KL/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbzkHgPMIn40rmABdam16nDsvgdMul3R7OBRvoLVWHom6O5Go_l_ZBwgqU4hp15rJ86J/exec';
 
 // Google OAuth Client ID (configurable - replace with your own)
 // To get your Client ID: https://console.cloud.google.com/apis/credentials
@@ -261,6 +261,72 @@ export const contAiApi = {
   // Obtener gastos del usuario
   getGastos: async (userId: string, limit: number = 20): Promise<ApiResponse<any>> => {
     const params = new URLSearchParams({ api: 'get_gastos', userId, limit: limit.toString() });
+    const url = `${API_BASE}?${params}`;
+    const res = await fetch(url);
+    return res.json();
+  },
+
+  // Change password
+  changePassword: async (userId: string, currentPassword: string, newPassword: string): Promise<ApiResponse<any>> => {
+    const url = API_BASE;
+    const body = JSON.stringify({
+      api: 'change_password',
+      userId,
+      currentPassword,
+      newPassword
+    });
+    const res = await fetch(url, {
+      method: 'POST',
+      body: body,
+      redirect: 'follow'
+    });
+    return res.json();
+  },
+
+  // Get linked clients (for contador)
+  getLinkedClients: async (contadorId: string): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams({ api: 'get_linked_clients', contadorId });
+    const url = `${API_BASE}?${params}`;
+    const res = await fetch(url);
+    return res.json();
+  },
+
+  // Get client details
+  getClient: async (clientId: string): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams({ api: 'get_client', clientId });
+    const url = `${API_BASE}?${params}`;
+    const res = await fetch(url);
+    return res.json();
+  },
+
+  // Get client gastos
+  getClientGastos: async (clientId: string, limit: number = 50): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams({ api: 'get_client_gastos', clientId, limit: limit.toString() });
+    const url = `${API_BASE}?${params}`;
+    const res = await fetch(url);
+    return res.json();
+  },
+
+  // Save contador notes
+  saveContadorNotes: async (contadorId: string, clientId: string, notes: string): Promise<ApiResponse<any>> => {
+    const url = API_BASE;
+    const body = JSON.stringify({
+      api: 'save_contador_notes',
+      contadorId,
+      clientId,
+      notes
+    });
+    const res = await fetch(url, {
+      method: 'POST',
+      body: body,
+      redirect: 'follow'
+    });
+    return res.json();
+  },
+
+  // Get contador notes
+  getContadorNotes: async (contadorId: string, clientId: string): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams({ api: 'get_contador_notes', contadorId, clientId });
     const url = `${API_BASE}?${params}`;
     const res = await fetch(url);
     return res.json();

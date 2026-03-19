@@ -19,6 +19,7 @@ import {
   TrendingUp,
   FileText,
   MessageSquare,
+  Users,
   Vault,
   Settings,
   Calculator,
@@ -35,22 +36,23 @@ const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Mis Gastos", url: "/gastos", icon: ScanLine },
   { title: "Facturación", url: "/facturacion", icon: FileText },
-  
+
   // AI Premium Features ⭐ NEW
   { title: "🟡 Impuestos", url: "/impuestos", icon: Calculator },
   { title: "⚫ Integraciones", url: "/integraciones", icon: ShoppingCart },
   { title: "🔴 Alertas", url: "/alertas", icon: Bell },
-  
+
   // Analysis
   { title: "Análisis", url: "/analisis", icon: BarChart3 },
   { title: "Pronóstico", url: "/pronostico", icon: TrendingUp },
-  
+
   // Pro
   { title: "💥 Simulador", url: "/simulador", icon: TrendingUp },
   { title: "💥 Score Fiscal", url: "/score", icon: ShieldCheck },
-  
+
   // Team
   { title: "Mi Contador", url: "/contador", icon: MessageSquare },
+  { title: "Clientes", url: "/clients", icon: Users, role: "contador" }, // Only for contadores
   { title: "Bóveda Fiscal", url: "/boveda", icon: Vault },
   { title: "Configuración", url: "/settings", icon: Settings },
 ];
@@ -60,8 +62,17 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
+  const userRole = localStorage.getItem('userRole');
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Filter nav items by role
+  const filteredNavItems = navItems.filter(item => {
+    if (item.role && userRole !== item.role) {
+      return false;
+    }
+    return true;
+  });
 
   const handleLogout = () => {
     localStorage.removeItem('userId');
@@ -100,7 +111,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1 px-2">
-              {navItems.map((item) => {
+              {filteredNavItems.map((item) => {
                 const active = isActive(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>

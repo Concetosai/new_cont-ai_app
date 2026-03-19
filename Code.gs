@@ -124,18 +124,6 @@ function testGoogleVisionOCR() {
  * @param {string} nombre - Nombre del usuario
  * @returns {string|null} - ID de la carpeta creada o null si falla
  */
-function createUserFolder(userId, nombre) {
-  try {
-    const parentFolder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
-    // Crear subcarpeta con un nombre único: "ID - Nombre"
-    const folderName = `${userId} - ${nombre}`;
-    const newFolder = parentFolder.createFolder(folderName);
-    return newFolder.getId();
-  } catch (error) {
-    console.error('Error al crear carpeta para usuario:', error);
-    return null; // Si falla, se guarda sin carpeta (se puede manejar después)
-  }
-}
 
 /**
  * Obtiene el ID de la carpeta de un usuario desde la hoja de Usuarios
@@ -171,15 +159,6 @@ function getUserCarpetaId(userId) {
   }
 }
 
-/**
- * Añade la columna CarpetaID a la hoja de Usuarios (ejecutar una sola vez)
- */
-function addCarpetaIDColumn() {
-  const ss = SpreadsheetApp.getActive();
-  const sheet = ss.getSheetByName('Usuarios');
-  // Añadir encabezado en columna 10 (J)
-  sheet.getRange(1, 10).setValue('CarpetaID');
-}
 
 // =====================================================
 // ENTRY POINTS: doGet y doPost (Web App)
@@ -253,12 +232,16 @@ function handleRequest(e, method) {
         result = getContadorCode(userIdCode);
         break;
         
-      case 'get_contador_code':
-        const userIdContador = e.parameter.userId;
-        if (!userIdContador) throw new Error('userId requerido');
-        result = getContadorCode(userIdContador);
+      case 'change_password':
+        if (!postDataContents) throw new Error('No se recibió el cuerpo de la petición');
+        const passwordData = JSON.parse(postDataContents);
+        const userIdPass = passwordData.userId;
+        const currentPass = passwordData.currentPassword;
+        const newPass = passwordData.newPassword;
+        if (!userIdPass || !currentPass || !newPass) throw new Error('Datos incompletos');
+        result = changePassword(userIdPass, currentPass, newPass);
         break;
-        
+
       // ========== DASHBOARD ==========
       case 'dashboard':
         const userId = e.parameter.userId;
@@ -310,6 +293,7 @@ function handleRequest(e, method) {
         break;
         
       // ========== IMPUESTOS ==========
+      case 'impuestos': // Match api.ts
       case 'impuestos_mes':
         const userIdImp = e.parameter.userId;
         if (!userIdImp) throw new Error('userId requerido');
@@ -322,6 +306,7 @@ function handleRequest(e, method) {
         break;
         
       // ========== INTEGRACIONES ==========
+      case 'integracion_connect': // Match api.ts
       case 'integraciones_connect':
         const integracionData = JSON.parse(e.postData.contents);
         result = conectarPlataforma(integracionData);
@@ -346,12 +331,14 @@ function handleRequest(e, method) {
         break;
         
       // ========== CHAT / CONTADOR ==========
+      case 'chat': // Match api.ts
       case 'chat_mensajes':
         const userIdChat = e.parameter.userId;
         if (!userIdChat) throw new Error('userId requerido');
         result = getMensajesChat(userIdChat);
         break;
         
+      case 'chat_send': // Match api.ts
       case 'chat_enviar':
         const mensajeData = JSON.parse(e.postData.contents);
         result = enviarMensaje(mensajeData);
@@ -371,6 +358,37 @@ function handleRequest(e, method) {
       case 'download_factura':
         const facturaId = e.parameter.facturaId;
         result = downloadFactura(facturaId);
+        break;
+
+      // ========== CONTADOR - CLIENTES VINCULADOS ==========
+      case 'get_linked_clients':
+        const contadorId = e.parameter.contadorId;
+        if (!contadorId) throw new Error('contadorId requerido');
+        result = getLinkedClients(contadorId);
+        break;
+
+      case 'get_client':
+        const clientId = e.parameter.clientId;
+        if (!clientId) throw new Error('clientId requerido');
+        result = getClient(clientId);
+        break;
+
+      case 'get_client_gastos':
+        const clientIdGastos = e.parameter.clientId;
+        const limitClientGastos = parseInt(e.parameter.limit) || 50;
+        if (!clientIdGastos) throw new Error('clientId requerido');
+        result = getClientGastos(clientIdGastos, limitClientGastos);
+        break;
+
+      case 'save_contador_notes':
+        const notesData = postDataContents ? JSON.parse(postDataContents) : {};
+        result = saveContadorNotes(notesData.contadorId, notesData.clientId, notesData.notes);
+        break;
+
+      case 'get_contador_notes':
+        const notesContadorId = e.parameter.contadorId;
+        const notesClientId = e.parameter.clientId;
+        result = getContadorNotes(notesContadorId, notesClientId);
         break;
 
       default:
@@ -394,18 +412,6 @@ function handleRequest(e, method) {
 /**
  * Crea una carpeta personal en Drive para el usuario
  */
-function createUserFolder(userId, nombre) {
-  try {
-    const parentFolder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
-    // Crear subcarpeta con un nombre único: "ID - Nombre"
-    const folderName = `${userId} - ${nombre}`;
-    const newFolder = parentFolder.createFolder(folderName);
-    return newFolder.getId();
-  } catch (error) {
-    console.error('Error al crear carpeta para usuario:', error);
-    return null; // Si falla, se guarda sin carpeta (puedes manejarlo después)
-  }
-}
 
 /**
  * Registra un nuevo usuario (contador o usuario normal)
@@ -705,6 +711,36 @@ function getUserSettings(userId) {
         contador: contadorInfo,
         createdAt: row[8]
       };
+    }
+  }
+  
+  throw new Error('Usuario no encontrado');
+}
+
+/**
+ * Cambia la contraseña de un usuario
+ */
+function changePassword(userId, currentPassword, newPassword) {
+  const ss = SpreadsheetApp.getActive();
+  const sheet = ss.getSheetByName(SHEETS.USUARIOS);
+  
+  const data = sheet.getDataRange().getValues();
+  
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[0] === userId) {
+      // Columna 5 es la contraseña almacenada
+      const storedPassword = row[5];
+      
+      // Verificar que la contraseña actual coincida
+      if (storedPassword !== currentPassword) {
+        throw new Error('La contraseña actual es incorrecta');
+      }
+      
+      // Actualizar la contraseña
+      sheet.getRange(i + 1, 6).setValue(newPassword);
+      
+      return { success: true, message: 'Contraseña actualizada correctamente' };
     }
   }
   
@@ -2212,3 +2248,276 @@ function createUserFolder(userId, nombre) {
     return null;
   }
 }
+
+// =====================================================
+// FUNCIONES PARA CONTADOR - CLIENTES VINCULADOS
+// =====================================================
+
+/**
+ * Obtiene todos los clientes vinculados a un contador
+ * @param {string} contadorId - ID del contador
+ */
+function getLinkedClients(contadorId) {
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
+    const gastosSheet = ss.getSheetByName(SHEETS.GASTOS);
+    
+    const usersData = userSheet.getDataRange().getValues();
+    const gastosData = gastosSheet ? gastosSheet.getDataRange().getValues() : [];
+    
+    // Buscar el código del contador
+    let contadorCode = '';
+    for (let i = 1; i < usersData.length; i++) {
+      if (usersData[i][0] === contadorId && usersData[i][2] === 'contador') {
+        contadorCode = usersData[i][6]; // Columna G - contadorCode
+        break;
+      }
+    }
+    
+    if (!contadorCode) {
+      return { success: false, error: 'Contador no encontrado' };
+    }
+    
+    // Buscar clientes vinculados con este código
+    const clientes = [];
+    for (let i = 1; i < usersData.length; i++) {
+      const row = usersData[i];
+      if (row[2] === 'usuario' && row[7] === contadorCode) { // Columna H - linkedContadorCode
+        const userId = row[0];
+        
+        // Contar gastos del cliente
+        let gastosCount = 0;
+        let totalGastos = 0;
+        for (let j = 1; j < gastosData.length; j++) {
+          if (gastosData[j][1] === userId) { // Columna B - userId
+            gastosCount++;
+            totalGastos += Number(gastosData[j][3]) || 0; // Columna D - monto
+          }
+        }
+        
+        // Calcular score fiscal simple
+        const scoreFiscal = calcularScoreFiscal(userId, gastosData);
+        
+        clientes.push({
+          id: userId,
+          nombre: row[1],
+          email: row[4],
+          rfc: row[3],
+          code: row[6] || '', // usuarioCode
+          status: 'activo',
+          linkedAt: row[8] ? new Date(row[8]).toLocaleDateString('es-MX') : 'N/A',
+          gastosCount: gastosCount,
+          totalGastos: totalGastos,
+          scoreFiscal: scoreFiscal
+        });
+      }
+    }
+    
+    return { success: true, data: clientes };
+  } catch (error) {
+    Logger.log('Error obteniendo clientes vinculados: ' + error);
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Obtiene información completa de un cliente
+ * @param {string} clientId - ID del cliente
+ */
+function getClient(clientId) {
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
+    const data = userSheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row[0] === clientId && row[2] === 'usuario') {
+        return {
+          success: true,
+          data: {
+            id: row[0],
+            nombre: row[1],
+            email: row[4],
+            rfc: row[3],
+            code: row[6] || '',
+            status: 'activo',
+            linkedAt: row[8] ? new Date(row[8]).toLocaleDateString('es-MX') : 'N/A'
+          }
+        };
+      }
+    }
+    
+    return { success: false, error: 'Cliente no encontrado' };
+  } catch (error) {
+    Logger.log('Error obteniendo cliente: ' + error);
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Obtiene los gastos de un cliente
+ * @param {string} clientId - ID del cliente
+ * @param {number} limit - Límite de gastos a retornar
+ */
+function getClientGastos(clientId, limit = 50) {
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const gastosSheet = ss.getSheetByName(SHEETS.GASTOS);
+    
+    if (!gastosSheet) {
+      return { success: false, error: 'No hay gastos registrados' };
+    }
+    
+    const data = gastosSheet.getDataRange().getValues();
+    const gastos = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row[1] === clientId) { // Columna B - userId
+        gastos.push({
+          id: row[0],
+          descripcion: row[2] || '',
+          monto: Number(row[3]) || 0,
+          fecha: row[4] ? new Date(row[4]).toLocaleDateString('es-MX') : '',
+          categoria: row[5] || 'Sin categoría',
+          iva: Number(row[6]) || 0,
+          retenido: Number(row[7]) || 0,
+          tieneXML: row[8] === 'true' || row[8] === true
+        });
+        
+        if (gastos.length >= limit) break;
+      }
+    }
+    
+    return { success: true, data: gastos };
+  } catch (error) {
+    Logger.log('Error obteniendo gastos del cliente: ' + error);
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Calcula un score fiscal simple para un cliente
+ */
+function calcularScoreFiscal(userId, gastosData) {
+  let score = 70; // Score base
+  
+  let gastosConXML = 0;
+  let gastosTotales = 0;
+  
+  for (let i = 1; i < gastosData.length; i++) {
+    if (gastosData[i][1] === userId) {
+      gastosTotales++;
+      if (gastosData[i][8] === 'true' || gastosData[i][8] === true) {
+        gastosConXML++;
+      }
+    }
+  }
+  
+  if (gastosTotales > 0) {
+    const porcentajeXML = (gastosConXML / gastosTotales) * 100;
+    score += Math.floor(porcentajeXML / 10); // Hasta +10 puntos por XMLs
+  }
+  
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * Guarda notas privadas del contador sobre un cliente
+ * @param {string} contadorId - ID del contador
+ * @param {string} clientId - ID del cliente
+ * @param {string} notes - Notas a guardar
+ */
+function saveContadorNotes(contadorId, clientId, notes) {
+  try {
+    const ss = SpreadsheetApp.getActive();
+    let notesSheet = ss.getSheetByName('ContadorNotas');
+    
+    // Crear sheet si no existe
+    if (!notesSheet) {
+      notesSheet = ss.insertSheet('ContadorNotas');
+      notesSheet.appendRow(['ContadorID', 'ClienteID', 'Notes', 'UpdatedAt']);
+    }
+    
+    const data = notesSheet.getDataRange().getValues();
+    let found = false;
+    
+    // Buscar si ya existe registro
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === contadorId && data[i][1] === clientId) {
+        notesSheet.getRange(i + 1, 3).setValue(notes);
+        notesSheet.getRange(i + 1, 4).setValue(new Date());
+        found = true;
+        break;
+      }
+    }
+    
+    // Si no existe, crear nuevo registro
+    if (!found) {
+      notesSheet.appendRow([contadorId, clientId, notes, new Date()]);
+    }
+    
+    return { success: true, message: 'Notas guardadas' };
+  } catch (error) {
+    Logger.log('Error guardando notas: ' + error);
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Obtiene notas privadas del contador sobre un cliente
+ * @param {string} contadorId - ID del contador
+ * @param {string} clientId - ID del cliente
+ */
+function getContadorNotes(contadorId, clientId) {
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const notesSheet = ss.getSheetByName('ContadorNotas');
+    
+    if (!notesSheet) {
+      return { success: true, data: '' };
+    }
+    
+    const data = notesSheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === contadorId && data[i][1] === clientId) {
+        return { success: true, data: data[i][2] || '' };
+      }
+    }
+    
+    return { success: true, data: '' };
+  } catch (error) {
+    Logger.log('Error obteniendo notas: ' + error);
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Obtiene el código único de un contador
+ * @param {string} userId - ID del contador
+ */
+function getContadorCode(userId) {
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
+    const data = userSheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === userId) {
+        return { 
+          success: true, 
+          contadorCode: data[i][6] || '' // Columna G
+        };
+      }
+    }
+    return { success: false, error: 'Usuario no encontrado' };
+  } catch (error) {
+    Logger.log('Error en getContadorCode: ' + error);
+    return { success: false, error: error.toString() };
+  }
+}
+
+// FIN DEL ARCHIVO

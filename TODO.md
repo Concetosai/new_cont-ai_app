@@ -1,2 +1,9 @@
-# NEW TASK: Add Missing Feature Buttons [PROGRESS]\n\n### 1. Enhance Dashboard.tsx [COMPLETED ✓]\n✅ Added CTA section with 5 buttons:\n   - 🟡 Impuestos SAT (/impuestos)\n   - ⚫ Integraciones (/integraciones) \n   - 💥 Simulador (/simulador)\n   - 🔴 Alertas (/alertas)\n   - 💥 Score Fiscal (/score)\n\n### 2. Update AppSidebar.tsx [PENDING]\n\n### 3. Create new pages [PENDING]\n- src/pages/Impuestos.tsx\n- src/pages/Integraciones.tsx  \n- src/pages/Alerts.tsx\n- src/pages/Simulador.tsx (bonus)\n\n### 4. Test & Complete [PENDING]\nLive at http://localhost:8080/dashboard - buttons visible!
+# Dark/Light Switch Implementation
 
+## Steps:
+- [x] 1. Update src/main.tsx: Wrap <App /> with ThemeProvider
+- [x] 2. Update src/index.css: Add light theme CSS variables
+- [x] 3. Update src/components/Layout.tsx: Add theme switch in header
+- [ ] 4. Test toggle functionality
+
+**Notes:** Use shadcn Switch + useTheme hook. Tailwind darkMode ready.
