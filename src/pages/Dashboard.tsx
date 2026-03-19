@@ -57,7 +57,7 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const result = await contAiApi.getLinkedClients(uId);
-      if (result.success && result.data) {
+      if (result.success && Array.isArray(result.data)) {
         setLinkedClients(result.data);
       }
     } catch (error) {
@@ -93,7 +93,7 @@ export default function Dashboard() {
                 <span>TERMINAL DE CONEXIÓN ACTIVA</span>
               </div>
               <div className="w-px h-4 bg-emerald-500/30 mx-1" />
-              <span>{linkedClients.length} CLIENTES EN LÍNEA</span>
+              <span>{(Array.isArray(linkedClients) ? linkedClients.length : 0)} CLIENTES EN LÍNEA</span>
             </motion.div>
           )}
         </div>
@@ -121,7 +121,7 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="text-2xl font-bold mb-1" style={{ color: "hsl(210, 20%, 92%)" }}>
-              {(role === 'contador' && kpi.label === "Clientes Activos") ? linkedClients.length : kpi.value}
+              {(role === 'contador' && kpi.label === "Clientes Activos") ? (Array.isArray(linkedClients) ? linkedClients.length : 0) : kpi.value}
             </div>
             <div className="text-xs" style={{ color: "hsl(210, 15%, 50%)" }}>{kpi.label}</div>
           </motion.div>

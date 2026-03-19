@@ -35,7 +35,7 @@ export default function Clients() {
       }
 
       const result = await contAiApi.getLinkedClients(contadorId);
-      if (result.success && result.data) {
+      if (result.success && Array.isArray(result.data)) {
         setClients(result.data);
       } else {
         // Mock data fallback
@@ -112,14 +112,14 @@ export default function Clients() {
         <div className="glass-card p-6 text-center rounded-2xl">
           <CheckCircle className="w-8 h-8 mx-auto mb-2" style={{ color: "hsl(145, 60%, 55%)" }} />
           <div className="text-2xl font-bold" style={{ color: "hsl(210, 20%, 90%)" }}>
-            {clients.filter(c => c.status === 'activo').length}
+            {Array.isArray(clients) ? clients.filter(c => c.status === 'activo').length : 0}
           </div>
           <p className="text-sm" style={{ color: "hsl(210, 15%, 50%)" }}>Activos</p>
         </div>
         <div className="glass-card p-6 text-center rounded-2xl">
           <FileText className="w-8 h-8 mx-auto mb-2" style={{ color: "hsl(220, 90%, 60%)" }} />
           <div className="text-2xl font-bold" style={{ color: "hsl(210, 20%, 90%)" }}>
-            {clients.reduce((sum, c) => sum + c.gastosCount, 0)}
+            {Array.isArray(clients) ? clients.reduce((sum, c) => sum + (c.gastosCount || 0), 0) : 0}
           </div>
           <p className="text-sm" style={{ color: "hsl(210, 15%, 50%)" }}>Gastos Total</p>
         </div>

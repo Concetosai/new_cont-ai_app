@@ -48,7 +48,7 @@ export default function UserSettings() {
     setLoadingClients(true);
     try {
       const result = await contAiApi.getLinkedClients(contadorId);
-      if (result.success && result.data) {
+      if (result.success && Array.isArray(result.data)) {
         setLinkedClients(result.data);
       }
     } catch (error) {
