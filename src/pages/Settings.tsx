@@ -91,8 +91,8 @@ export default function UserSettings() {
       const result = await contAiApi.getUserSettings(userId);
       if (result.success) {
         setUser(result.data);
-        if (result.data.linkedContador) {
-          setContadorInfo(result.data.linkedContador);
+        if (result.data.contador) {
+          setContadorInfo(result.data.contador);
         }
       }
     } catch (error) {
