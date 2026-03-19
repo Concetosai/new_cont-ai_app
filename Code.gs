@@ -247,6 +247,18 @@ function handleRequest(e, method) {
         result = getUserSettings(userIdSettings);
         break;
         
+      case 'get_contador_code':
+        const userIdCode = e.parameter.userId;
+        if (!userIdCode) throw new Error('userId requerido');
+        result = getContadorCode(userIdCode);
+        break;
+        
+      case 'get_contador_code':
+        const userIdContador = e.parameter.userId;
+        if (!userIdContador) throw new Error('userId requerido');
+        result = getContadorCode(userIdContador);
+        break;
+        
       // ========== DASHBOARD ==========
       case 'dashboard':
         const userId = e.parameter.userId;

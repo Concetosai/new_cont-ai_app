@@ -184,6 +184,14 @@ export const contAiApi = {
     return res.json();
   },
 
+  // Get contador code (QR code)
+  getContadorCode: async (userId: string): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams({ api: 'get_contador_code', userId });
+    const url = `${API_BASE}?${params}`;
+    const res = await fetch(url);
+    return res.json();
+  },
+
   // Register
   registerUser: async (userData: any): Promise<ApiResponse<any>> => {
     // Enviar como POST con redirect falso para Google Apps Script
