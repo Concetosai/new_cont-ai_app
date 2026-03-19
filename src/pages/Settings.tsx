@@ -1,19 +1,34 @@
 import { motion } from "framer-motion";
-import { Settings, Shield, Mail, User, Zap, QrCode, Copy, ArrowRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Settings, Shield, Mail, User, Zap, QrCode, Copy, ArrowRight, Download } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
 import contAiApi from "@/lib/api";
+import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 
 export default function UserSettings() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [contadorInfo, setContadorInfo] = useState<any>(null);
+  const [contadorCode, setContadorCode] = useState<string>('');
+  const qrRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
     if (userId) {
       loadSettings(userId);
+      loadContadorCode(userId);
     }
   }, []);
+
+  const loadContadorCode = async (userId: string) => {
+    try {
+      const result = await contAiApi.getContadorCode(userId);
+      if (result.success && result.data?.code) {
+        setContadorCode(result.data.code);
+      }
+    } catch (error) {
+      console.error('Error loading contador code:', error);
+    }
+  };
 
   const loadSettings = async (userId: string) => {
     setLoading(true);
@@ -32,7 +47,23 @@ export default function UserSettings() {
   };
 
   const copyContadorCode = () => {
-    navigator.clipboard.writeText(contadorInfo?.code || '');
+    navigator.clipboard.writeText(contadorCode || contadorInfo?.code || '');
+  };
+
+  const downloadQRCode = () => {
+    const canvas = qrRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    
+    // Get the canvas data URL
+    const pngUrl = canvas.toDataURL('image/png');
+    
+    // Trigger download
+    const downloadLink = document.createElement('a');
+    downloadLink.href = pngUrl;
+    downloadLink.download = `codigo-qr-contai-${contadorCode}.png`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
   };
 
   if (loading) {
@@ -100,6 +131,58 @@ export default function UserSettings() {
           )}
         </div>
       </motion.div>
+
+      {/* Contador QR Code Section - Only for contadores */}
+      {user?.role === 'contador' && contadorCode && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-6"
+        >
+          <h2 className="text-xl font-bold flex items-center gap-2 mb-4" style={{ color: "hsl(195, 100%, 65%)" }}>
+            <QrCode className="w-5 h-5" />
+            Mi Código QR para Clientes
+          </h2>
+          <p className="text-sm mb-6" style={{ color: "hsl(210, 15%, 50%)" }}>
+            Tus clientes pueden escanear este código QR para vincularse contigo
+          </p>
+          
+          <div className="flex flex-col items-center">
+            <div ref={qrRef} className="bg-white p-4 rounded-2xl inline-block mb-4">
+              <QRCodeCanvas
+                value={contadorCode}
+                size={200}
+                level={"H"}
+                includeMargin={true}
+              />
+            </div>
+            
+            <div className="mb-4">
+              <p className="text-xs mb-2" style={{ color: "hsl(210, 15%, 50%)" }}>Código único:</p>
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white font-mono font-bold text-xl px-6 py-3 rounded-xl shadow-lg tracking-wider">
+                {contadorCode}
+              </div>
+            </div>
+            
+            <div className="flex gap-3 w-full max-w-sm">
+              <button 
+                onClick={copyContadorCode}
+                className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium flex items-center justify-center gap-2 bg-blue-500/20 border border-blue-500/30 hover:bg-blue-500/30 transition-all"
+              >
+                <Copy className="w-4 h-4" />
+                Copiar Código
+              </button>
+              <button 
+                onClick={downloadQRCode}
+                className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Descargar QR
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Linked Contador */}
       {contadorInfo && (
