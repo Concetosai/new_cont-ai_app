@@ -60,8 +60,8 @@ export default function UserSettings() {
   const loadContadorCode = async (userId: string) => {
     try {
       const result = await contAiApi.getContadorCode(userId);
-      if (result.success && result.data?.code) {
-        setContadorCode(result.data.code);
+      if (result.success && result.data?.contadorCode) {
+        setContadorCode(result.data.contadorCode);
       } else {
         // Si no hay código, generar uno automáticamente
         const generatedCode = generateContadorCode();
