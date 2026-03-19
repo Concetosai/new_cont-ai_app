@@ -1423,18 +1423,21 @@ function vincularContador(userId, contadorCode) {
     const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
     const data = userSheet.getDataRange().getValues();
     
-    // Buscar fila del usuario
+    // Buscar fila del usuario y verificar que el código del contador sea válido
     let rowNum = -1;
+    let contadorExiste = false;
+    
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] === userId) {
-        rowNum = i + 1; // +1 porque las filas en Sheets empiezan en 1
-        break;
+        rowNum = i + 1;
+      }
+      if (data[i][2] === 'contador' && data[i][6] === contadorCode) {
+        contadorExiste = true;
       }
     }
     
-    if (rowNum === -1) {
-      throw new Error('Usuario no encontrado');
-    }
+    if (rowNum === -1) throw new Error('Usuario no encontrado');
+    if (!contadorExiste) throw new Error('El código del contador no es válido o no existe');
     
     // Actualizar LinkedContadorCode
     userSheet.getRange(rowNum, 8).setValue(contadorCode); // Columna H
