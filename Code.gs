@@ -812,13 +812,29 @@ function getDashboardKpis(userId) {
     if (row[1] == userId) saldoTotal += Number(row[2]) || 0;
   });
   
-  // 2. Clientes Activos (con saldo > 0)
-  const clientesSheet = ss.getSheetByName(SHEETS.CLIENTES);
-  const clientesData = clientesSheet.getDataRange().getValues();
+  // 2. Clientes Activos (Vinculados)
   let clientesActivos = 0;
-  clientesData.slice(1).forEach(row => {
-    if (row[1] == userId && (Number(row[5]) || 0) > 0) clientesActivos++;
-  });
+  const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
+  const usersData = userSheet.getDataRange().getValues();
+  
+  // Buscar código del contador primero
+  let contadorCode = '';
+  for (let i = 1; i < usersData.length; i++) {
+    if (usersData[i][0] === userId && usersData[i][2] === 'contador') {
+      contadorCode = String(usersData[i][6]).trim().toUpperCase();
+      break;
+    }
+  }
+  
+  if (contadorCode) {
+    for (let i = 1; i < usersData.length; i++) {
+      const row = usersData[i];
+      const linkedCode = String(row[7]).trim().toUpperCase();
+      if (row[2] === 'usuario' && linkedCode === contadorCode) {
+        clientesActivos++;
+      }
+    }
+  }
   
   // 3. Pendientes SAT (impuestos vencidos no pagados)
   const impuestosSheet = ss.getSheetByName(SHEETS.IMPUESTOS);
@@ -2277,7 +2293,7 @@ function getLinkedClients(contadorId) {
     let contadorCode = '';
     for (let i = 1; i < usersData.length; i++) {
       if (usersData[i][0] === contadorId && usersData[i][2] === 'contador') {
-        contadorCode = usersData[i][6]; // Columna G - contadorCode
+        contadorCode = String(usersData[i][6]).trim().toUpperCase(); // Columna G - contadorCode
         break;
       }
     }
@@ -2290,7 +2306,8 @@ function getLinkedClients(contadorId) {
     const clientes = [];
     for (let i = 1; i < usersData.length; i++) {
       const row = usersData[i];
-      if (row[2] === 'usuario' && row[7] === contadorCode) { // Columna H - linkedContadorCode
+      const linkedCode = String(row[7]).trim().toUpperCase(); // Columna H - linkedContadorCode
+      if (row[2] === 'usuario' && linkedCode === contadorCode) {
         const userId = row[0];
         
         // Contar gastos del cliente
