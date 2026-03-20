@@ -2374,10 +2374,10 @@ function getLinkedClients(contadorId) {
     }
     
     Logger.log('Total clientes encontrados: ' + clientes.length);
-    return { success: true, data: clientes };
+    return clientes;
   } catch (error) {
     Logger.log('Error en getLinkedClients: ' + error);
-    return { success: false, error: error.toString() };
+    throw error;
   }
 }
 
