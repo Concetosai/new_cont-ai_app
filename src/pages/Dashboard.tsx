@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { motion, type Variants } from "framer-motion";
 import { Link } from "react-router-dom";
-import { DollarSign, Users, Clock, TrendingUp, AlertTriangle, CheckCircle, ArrowUpRight, ArrowDownRight, Zap, FileText, Brain, ShoppingCart, AlertCircle, Calculator, Shield } from "lucide-react";
+import { DollarSign, Users, Clock, TrendingUp, AlertTriangle, CheckCircle, ArrowUpRight, ArrowDownRight, Zap, FileText, Brain, ShoppingCart, AlertCircle, Calculator, Shield, RefreshCw } from "lucide-react";
 import contAiApi from "@/lib/api";
+import { toast } from "sonner";
 
 const kpis = [
   { label: "Saldo Total", value: "$248,500", change: "+12.4%", up: true, icon: DollarSign, color: "hsl(195, 100%, 50%)" },
@@ -66,6 +67,25 @@ export default function Dashboard() {
     setLoading(false);
   };
 
+  const debugConnection = async () => {
+    const uId = localStorage.getItem('userId');
+    toast.info(`ID Local: ${uId || 'No encontrado'}`);
+    
+    if (uId) {
+      try {
+        const result = await contAiApi.getLinkedClients(uId);
+        if (result.success) {
+          toast.success(`Servidor: OK. Clientes: ${result.data?.length || 0}`);
+          console.log('Debug result:', result);
+        } else {
+          toast.error(`Servidor Error: ${result.error}`);
+        }
+      } catch (err: any) {
+        toast.error(`Red Error: ${err.message}`);
+      }
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Page header */}
@@ -94,6 +114,13 @@ export default function Dashboard() {
               </div>
               <div className="w-px h-4 bg-emerald-500/30 mx-1" />
               <span>{(Array.isArray(linkedClients) ? linkedClients.length : 0)} CLIENTES EN LÍNEA</span>
+              <button 
+                onClick={debugConnection}
+                className="ml-3 p-1 hover:bg-emerald-500/20 rounded-full transition-colors"
+                title="Depurar Conexión"
+              >
+                <RefreshCw className="w-3 h-3" />
+              </button>
             </motion.div>
           )}
         </div>
