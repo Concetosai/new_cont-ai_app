@@ -622,7 +622,7 @@ const handleChangePassword = async () => {
                 type="text"
                 placeholder="Código del contador (ej: ABC123XY)"
                 className="w-full px-4 py-3 rounded-xl text-sm bg-slate-800/50 border border-slate-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 mb-3 text-center uppercase tracking-wider font-mono pr-28"
-                maxLength={8}
+                maxLength={20}
                 ref={codeInputRef}
               />
               <button
