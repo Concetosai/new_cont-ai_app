@@ -757,17 +757,19 @@ function changePassword(userId, currentPassword, newPassword) {
 function getContadorInfoByCode(contadorCode) {
   const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName(SHEETS.USUARIOS);
-  
   const data = sheet.getDataRange().getValues();
+  const cleanCode = String(contadorCode).trim().toUpperCase();
   
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    if (row[2] === 'contador' && row[6] === contadorCode) {
+    const rowCode = String(row[6]).trim().toUpperCase();
+    if (row[2] === 'contador' && rowCode === cleanCode) {
       return {
         id: row[0],
         nombre: row[1],
         email: row[4],
-        rfc: row[3]
+        rfc: row[3],
+        code: rowCode
       };
     }
   }
@@ -806,43 +808,30 @@ function getDashboardKpis(userId) {
   
   // 1. Saldo Total (FlujoEfectivo)
   const flujoSheet = ss.getSheetByName(SHEETS.FLUJO_EFECTIVO);
-  const flujoData = flujoSheet.getDataRange().getValues();
+  const flujoData = flujoSheet ? flujoSheet.getDataRange().getValues() : [];
   let saldoTotal = 0;
   flujoData.slice(1).forEach(row => {
     if (row[1] == userId) saldoTotal += Number(row[2]) || 0;
   });
   
-  // 2. Clientes Activos (Vinculados)
+  // 2. Clientes Activos (Vinculados) - Uso de la triple validación
   let clientesActivos = 0;
-  const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
-  const usersData = userSheet.getDataRange().getValues();
-  
-  // Buscar código del contador primero
-  let contadorCode = '';
-  for (let i = 1; i < usersData.length; i++) {
-    if (usersData[i][0] === userId && usersData[i][2] === 'contador') {
-      contadorCode = String(usersData[i][6]).trim().toUpperCase();
-      break;
+  try {
+    const clientsResult = getLinkedClients(userId);
+    if (clientsResult.success && Array.isArray(clientsResult.data)) {
+      clientesActivos = clientsResult.data.length;
     }
-  }
-  
-  if (contadorCode) {
-    for (let i = 1; i < usersData.length; i++) {
-      const row = usersData[i];
-      const linkedCode = String(row[7]).trim().toUpperCase();
-      if (row[2] === 'usuario' && linkedCode === contadorCode) {
-        clientesActivos++;
-      }
-    }
+  } catch (e) {
+    Logger.log('Error calculating active clients for dashboard: ' + e.message);
   }
   
   // 3. Pendientes SAT (impuestos vencidos no pagados)
   const impuestosSheet = ss.getSheetByName(SHEETS.IMPUESTOS);
-  const impuestosData = impuestosSheet.getDataRange().getValues();
+  const impuestosData = impuestosSheet ? impuestosSheet.getDataRange().getValues() : [];
   let pendientesSAT = 0;
   const hoy = new Date();
   impuestosData.slice(1).forEach(row => {
-    if (row[1] == userId && row[5] != 'Pagado') {
+    if (String(row[1]).trim() === String(userId).trim() && row[5] != 'Pagado') {
       const vencimiento = new Date(row[4]);
       if (vencimiento < hoy) pendientesSAT++;
     }
@@ -850,12 +839,12 @@ function getDashboardKpis(userId) {
   
   // 4. Ingresos del mes (Facturas)
   const facturasSheet = ss.getSheetByName(SHEETS.FACTURAS);
-  const facturasData = facturasSheet.getDataRange().getValues();
+  const facturasData = facturasSheet ? facturasSheet.getDataRange().getValues() : [];
   const mesActual = new Date().getMonth();
   const anioActual = new Date().getFullYear();
   let ingresosMes = 0;
   facturasData.slice(1).forEach(row => {
-    if (row[1] == userId) {
+    if (String(row[1]).trim() === String(userId).trim()) {
       const fechaFactura = new Date(row[4]);
       if (fechaFactura.getMonth() === mesActual && fechaFactura.getFullYear() === anioActual) {
         ingresosMes += Number(row[3]) || 0;
@@ -863,18 +852,12 @@ function getDashboardKpis(userId) {
     }
   });
   
-  // 5. Cuánto deben clientes
-  let cuantoDeben = 0;
-  clientesData.slice(1).forEach(row => {
-    if (row[1] == userId) cuantoDeben += Number(row[5]) || 0;
-  });
-  
   return {
     saldoTotal,
     clientesActivos,
     pendientesSAT,
     ingresosMes,
-    cuantoDebenClientes: cuantoDeben
+    cuantoDebenClientes: 0 // Mock por ahora
   };
 }
 
@@ -2278,69 +2261,75 @@ function createUserFolder(userId, nombre) {
 
 /**
  * Obtiene todos los clientes vinculados a un contador
- * @param {string} contadorId - ID del contador
+ * @param {string} contadorId - ID del contador (o email/rfc para fallback)
  */
 function getLinkedClients(contadorId) {
   try {
     const ss = SpreadsheetApp.getActive();
+    ss.getPredefinedSheets; // Force refresh
     const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
-    const gastosSheet = ss.getSheetByName(SHEETS.GASTOS);
-    
     const usersData = userSheet.getDataRange().getValues();
-    const gastosData = gastosSheet ? gastosSheet.getDataRange().getValues() : [];
     
-    // Buscar el código del contador
+    // 1. Identificar al contador (Triple Validación: ID, Email o RFC)
     let contadorCode = '';
+    const searchId = String(contadorId).trim();
+    
     for (let i = 1; i < usersData.length; i++) {
-      if (usersData[i][0] === contadorId && usersData[i][2] === 'contador') {
-        contadorCode = String(usersData[i][6]).trim().toUpperCase(); // Columna G - contadorCode
+      const row = usersData[i];
+      const rowId = String(row[0]).trim();
+      const rowEmail = String(row[4]).trim().toLowerCase();
+      const rowRFC = String(row[3]).trim().toUpperCase();
+      const targetSearch = searchId.toLowerCase();
+      
+      // Buscamos coincidencia flexible
+      if (row[2] === 'contador' && 
+          (rowId === searchId || rowEmail === targetSearch || rowRFC === searchId.toUpperCase())) {
+        contadorCode = String(row[6]).trim().toUpperCase();
         break;
       }
     }
     
     if (!contadorCode) {
-      return { success: false, error: 'Contador no encontrado' };
+      Logger.log('Contador no identificado para linking: ' + contadorId);
+      return { success: false, error: 'Contador no identificado' };
     }
     
-    // Buscar clientes vinculados con este código
+    // 2. Buscar clientes vinculados con este código
     const clientes = [];
+    const gastosSheet = ss.getSheetByName(SHEETS.GASTOS);
+    const gastosData = gastosSheet ? gastosSheet.getDataRange().getValues() : [];
+    
     for (let i = 1; i < usersData.length; i++) {
       const row = usersData[i];
-      const linkedCode = String(row[7]).trim().toUpperCase(); // Columna H - linkedContadorCode
+      const linkedCode = String(row[7]).trim().toUpperCase();
       if (row[2] === 'usuario' && linkedCode === contadorCode) {
         const userId = row[0];
         
-        // Contar gastos del cliente
         let gastosCount = 0;
         let totalGastos = 0;
         for (let j = 1; j < gastosData.length; j++) {
-          if (gastosData[j][1] === userId) { // Columna B - userId
+          if (String(gastosData[j][1]).trim() === String(userId).trim()) {
             gastosCount++;
-            totalGastos += Number(gastosData[j][3]) || 0; // Columna D - monto
+            totalGastos += Number(gastosData[j][2]) || 0;
           }
         }
-        
-        // Calcular score fiscal simple
-        const scoreFiscal = calcularScoreFiscal(userId, gastosData);
         
         clientes.push({
           id: userId,
           nombre: row[1],
           email: row[4],
           rfc: row[3],
-          code: row[6] || '', // usuarioCode
           status: 'activo',
           linkedAt: row[8] ? new Date(row[8]).toLocaleDateString('es-MX') : 'N/A',
           gastosCount: gastosCount,
-          totalGastos: totalGastos,
-          scoreFiscal: scoreFiscal
+          totalGastos: totalGastos
         });
       }
     }
     
     return { success: true, data: clientes };
   } catch (error) {
-    Logger.log('Error obteniendo clientes vinculados: ' + error);
+    Logger.log('Error en getLinkedClients: ' + error);
     return { success: false, error: error.toString() };
   }
 }
