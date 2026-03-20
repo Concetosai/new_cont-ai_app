@@ -132,8 +132,8 @@ function testGoogleVisionOCR() {
  */
 function getUserCarpetaId(userId) {
   try {
-    // Usar getActive() en lugar de openById() para evitar problemas de permisos
-    const ss = SpreadsheetApp.getActive();
+    // Usar openById(SPREADSHEET_ID) para total robustez en llamadas API externa
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
     
     if (!userSheet) {
@@ -424,7 +424,7 @@ function handleRequest(e, method) {
  * Espera: { nombre, email, password, role, rfc, contadorCode? (solo si el usuario se vincula) }
  */
 function registerUser(data) {
-  const ss = SpreadsheetApp.getActive();
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(SHEETS.USUARIOS);
 
   // Verificar si el email ya existe
@@ -496,7 +496,7 @@ function registerUser(data) {
  * Espera: { email, password }
  */
 function loginUser(credenciales) {
-  const ss = SpreadsheetApp.getActive();
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(SHEETS.USUARIOS);
   
   const data = sheet.getDataRange().getValues();
@@ -551,7 +551,7 @@ function googleLogin(data) {
     const email = userInfo.email;
     
     // Buscar usuario por email
-    const ss = SpreadsheetApp.getActive();
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const sheet = ss.getSheetByName(SHEETS.USUARIOS);
     const spreadsheetData = sheet.getDataRange().getValues();
     
@@ -755,7 +755,7 @@ function changePassword(userId, currentPassword, newPassword) {
  * Obtiene información de un contador a partir de su código único
  */
 function getContadorInfoByCode(contadorCode) {
-  const ss = SpreadsheetApp.getActive();
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(SHEETS.USUARIOS);
   const data = sheet.getDataRange().getValues();
   const cleanCode = String(contadorCode).trim().toUpperCase();
@@ -804,7 +804,7 @@ function sendWelcomeEmail(email, nombre, role) {
 // FUNCIONES DE NEGOCIO - DASHBOARD
 // =====================================================
 function getDashboardKpis(userId) {
-  const ss = SpreadsheetApp.getActive();
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   
   // 1. Saldo Total (FlujoEfectivo)
   const flujoSheet = ss.getSheetByName(SHEETS.FLUJO_EFECTIVO);
@@ -2265,8 +2265,7 @@ function createUserFolder(userId, nombre) {
  */
 function getLinkedClients(contadorId) {
   try {
-    const ss = SpreadsheetApp.getActive();
-    ss.getPredefinedSheets; // Force refresh
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
     const usersData = userSheet.getDataRange().getValues();
     
