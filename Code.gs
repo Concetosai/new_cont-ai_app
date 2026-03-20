@@ -2275,26 +2275,37 @@ function getLinkedClients(contadorId) {
     
     Logger.log('Buscando contador con ID: ' + searchId);
     
+    // Primero, verificar si el usuario que hace la solicitud ES un contador
     for (let i = 1; i < usersData.length; i++) {
       const row = usersData[i];
       const rowId = String(row[0] || '').trim();
-      const rowEmail = String(row[4] || '').trim().toLowerCase();
-      const rowRFC = String(row[3] || '').trim().toUpperCase();
       const rowRole = String(row[2] || '').trim().toLowerCase();
-      const targetSearch = searchId.toLowerCase();
-      
-      Logger.log('Verificando fila ' + i + ': ID=' + rowId + ', Role=' + rowRole + ', RFC=' + rowRFC);
-      
-      // Verificar que el usuario sea contador Y coincida con el ID/email/RFC
       const isContador = (rowRole === 'contador' || rowRole === 'contador(a)');
-      const matchesId = (rowId === searchId);
-      const matchesEmail = rowEmail && rowEmail === targetSearch;
-      const matchesRFC = rowRFC && rowRFC === searchId.toUpperCase();
       
-      if (isContador && (matchesId || matchesEmail || matchesRFC)) {
+      // Si el usuario que solicita ES un contador y su ID coincide, usar su código directamente
+      if (isContador && rowId === searchId) {
         contadorCode = String(row[6] || '').trim().toUpperCase();
-        Logger.log('*** CONTADOR ENCONTRADO *** Codigo: ' + contadorCode + ' - Nombre: ' + row[1]);
+        Logger.log('*** CONTADOR DIRECTO ENCONTRADO *** Codigo: ' + contadorCode + ' - Nombre: ' + row[1]);
         break;
+      }
+    }
+    
+    // Si no se encontró directamente, buscar por email o RFC
+    if (!contadorCode) {
+      for (let i = 1; i < usersData.length; i++) {
+        const row = usersData[i];
+        const rowId = String(row[0] || '').trim();
+        const rowEmail = String(row[4] || '').trim().toLowerCase();
+        const rowRFC = String(row[3] || '').trim().toUpperCase();
+        const rowRole = String(row[2] || '').trim().toLowerCase();
+        const targetSearch = searchId.toLowerCase();
+        const isContador = (rowRole === 'contador' || rowRole === 'contador(a)');
+        
+        if (isContador && (rowEmail === targetSearch || rowRFC === searchId.toUpperCase())) {
+          contadorCode = String(row[6] || '').trim().toUpperCase();
+          Logger.log('*** CONTADOR ENCONTRADO POR EMAIL/RFC *** Codigo: ' + contadorCode + ' - Nombre: ' + row[1]);
+          break;
+        }
       }
     }
     
