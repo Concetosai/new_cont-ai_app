@@ -467,7 +467,7 @@ const handleChangePassword = async () => {
             Clientes Vinculados
           </h2>
           <p className="text-sm mb-6" style={{ color: "hsl(210, 15%, 50%)" }}>
-            Clientes que se han vinculado con tu código de contador (Mock data - requiere backend)
+            Gestiona el acceso de tus clientes vinculados
           </p>
           
           <div className="space-y-3">
@@ -533,16 +533,6 @@ const handleChangePassword = async () => {
               </div>
             )}
           </div>
-
-          {false && ( // Empty state if no clients
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 mx-auto mb-4 text-slate-500" />
-              <h3 className="text-lg font-bold mb-2" style={{ color: "hsl(210, 20%, 70%)" }}>No hay clientes vinculados</h3>
-              <p className="text-sm mb-6" style={{ color: "hsl(210, 15%, 45%)" }}>
-                Comparte tu código QR para que tus clientes se vinculen contigo
-              </p>
-            </div>
-          )}
         </motion.div>
       )}
       
