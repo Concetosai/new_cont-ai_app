@@ -53,8 +53,7 @@ const navItems = [
 
   // Team
   { title: "Mensajería", url: "/contador", icon: MessageSquare, role: "usuario" },
-  { title: "Clientes", url: "/clients", icon: Users, role: "contador" }, // Only for contadores
-  { title: "Mensajería", url: "/chat", icon: MessageSquare, role: "contador" }, // Only for contadores
+  { title: "Clientes", url: "/clients", icon: Users, role: "contador" }, // Only for contadores // Only for contadores
   { title: "Bóveda Fiscal", url: "/boveda", icon: Vault },
   { title: "Configuración", url: "/settings", icon: Settings },
 ];
@@ -138,8 +137,8 @@ export function AppSidebar() {
                         to={item.url}
                         end
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${active
-                            ? "active"
-                            : ""
+                          ? "active"
+                          : ""
                           }`}
                         style={{
                           color: active ? "hsl(195, 100%, 60%)" : "hsl(210, 15%, 60%)",
