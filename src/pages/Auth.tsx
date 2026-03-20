@@ -100,7 +100,7 @@ export default function Auth() {
       const userInfo = await userInfoResponse.json();
       
       // Send user info to backend for login
-      const result = await contAiApi.googleLogin(accessToken, userInfo);
+      const result = await contAiApi.googleLogin({ googleToken: accessToken, userInfo });
       if (result.success) {
         localStorage.setItem('userId', result.data.userId);
         localStorage.setItem('userRole', result.data.role);
@@ -184,10 +184,13 @@ export default function Auth() {
       const userInfo = await userInfoResponse.json();
 
       // Register with Google info - pass userInfo to backend
-      const result = await contAiApi.googleRegister(accessToken, role, {
+      const result = await contAiApi.googleRegister({
+        googleToken: accessToken,
+        role,
         nombre: userInfo.name,
-        email: userInfo.email
-      }, userInfo);
+        email: userInfo.email,
+        userInfo
+      });
 
       if (result.success) {
         if (role === 'contador') {
@@ -226,7 +229,7 @@ export default function Auth() {
     setLoading(true);
     setError('');
     try {
-      const result = await contAiApi.registerUser({
+      const result = await contAiApi.register({
         ...formData,
         role: 'contador'
       });
@@ -253,7 +256,7 @@ export default function Auth() {
     setLoading(true);
     setError('');
     try {
-      const result = await contAiApi.registerUser({
+      const result = await contAiApi.register({
         ...formData,
         role: 'usuario',
         contadorCode: linkedContadorCode || undefined
