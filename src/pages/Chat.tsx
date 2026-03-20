@@ -54,9 +54,9 @@ export default function Chat() {
     try {
       // If I'm a contador, get the cliente info
       if (isContador && clienteId) {
-        const result = await contAiApi.getUsuario(clienteId, currentUserId);
-        if (result.success && result.data?.usuario) {
-          setOtherUser(result.data.usuario);
+        const result = await contAiApi.getUsuario(clienteId);
+        if (result.success && result.data) {
+          setOtherUser(result.data);
         }
       } 
       // If I'm a cliente, get my contador info from settings
@@ -117,7 +117,8 @@ export default function Chat() {
       const result = await contAiApi.sendMessage(
         clienteIdToSend || '', 
         nuevoMensaje,
-        contadorIdToSend
+        contadorIdToSend || '',
+        isContador ? 'contador' : 'usuario'
       );
       
       if (result.success) {
