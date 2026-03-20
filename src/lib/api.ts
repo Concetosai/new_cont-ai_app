@@ -1,5 +1,5 @@
 // CONT-AI Google Apps Script Backend API
-const API_BASE = 'https://script.google.com/macros/s/AKfycbxYJXIZ8zpNJ5vPn_iNcuEXy8JVyvy2-kY6HVhAX1NIzD7wom7tVCwkSYIokY5ox_gL/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbz69CtHLJLaE9Ig9cj3J4mE5wn7ziGIMADBHsu6lOPFKGed9RZr2snPAygMAGU78pAB/exec';
 
 // Google OAuth Client ID (configurable - replace with your own)
 // To get your Client ID: https://console.cloud.google.com/apis/credentials
@@ -89,8 +89,8 @@ export const contAiApi = {
   },
 
   // Simulador
-  simulador: async (scenario: {ingresos: number, gastos: number, deducciones: number}): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ 
+  simulador: async (scenario: { ingresos: number, gastos: number, deducciones: number }): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams({
       api: 'simulador',
       data: JSON.stringify(scenario)
     });
@@ -101,11 +101,11 @@ export const contAiApi = {
 
   // Integraciones (placeholder)
   connectPlataforma: async (userId: string, plataforma: string, token: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ 
+    const params = new URLSearchParams({
       api: 'integracion_connect',
       userId,
       plataforma,
-      token 
+      token
     });
     const url = `${API_BASE}?${params}`;
     const res = await fetch(url);
@@ -149,11 +149,11 @@ export const contAiApi = {
       const params = new URLSearchParams({ api: 'download_factura', facturaId });
       const url = `${API_BASE}?${params}`;
       const res = await fetch(url);
-      
+
       if (!res.ok) {
         return { success: false, error: `HTTP error: ${res.status}` };
       }
-      
+
       return res.json();
     } catch (error: any) {
       console.error('downloadFactura API error:', error);
@@ -205,7 +205,7 @@ export const contAiApi = {
   },
 
   // Auth (simple)
-  login: async (email: string, password: string): Promise<ApiResponse<{userId: string, role: string}>> => {
+  login: async (email: string, password: string): Promise<ApiResponse<{ userId: string, role: string }>> => {
     const url = `${API_BASE}?api=login`;
     const res = await fetch(url, {
       method: 'POST',
@@ -226,7 +226,7 @@ export const contAiApi = {
   },
 
   // Google OAuth Login - receives user info from frontend (verified there)
-  googleLogin: async (googleToken: string, userInfo?: { email: string; name?: string }): Promise<ApiResponse<{userId: string, role: string}>> => {
+  googleLogin: async (googleToken: string, userInfo?: { email: string; name?: string }): Promise<ApiResponse<{ userId: string, role: string }>> => {
     const url = `${API_BASE}?api=google_login`;
     const res = await fetch(url, {
       method: 'POST',

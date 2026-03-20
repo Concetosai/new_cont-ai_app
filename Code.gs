@@ -132,8 +132,8 @@ function testGoogleVisionOCR() {
  */
 function getUserCarpetaId(userId) {
   try {
-    // Usar openById(SPREADSHEET_ID) para total robustez en llamadas API externa
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    // Usar getActive() para Web App - permisos del usuario que ejecuta
+    const ss = SpreadsheetApp.getActive();
     const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
     
     if (!userSheet) {
@@ -424,7 +424,7 @@ function handleRequest(e, method) {
  * Espera: { nombre, email, password, role, rfc, contadorCode? (solo si el usuario se vincula) }
  */
 function registerUser(data) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName(SHEETS.USUARIOS);
 
   // Verificar si el email ya existe
@@ -496,7 +496,7 @@ function registerUser(data) {
  * Espera: { email, password }
  */
 function loginUser(credenciales) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName(SHEETS.USUARIOS);
   
   const data = sheet.getDataRange().getValues();
@@ -551,7 +551,7 @@ function googleLogin(data) {
     const email = userInfo.email;
     
     // Buscar usuario por email
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.getActive();
     const sheet = ss.getSheetByName(SHEETS.USUARIOS);
     const spreadsheetData = sheet.getDataRange().getValues();
     
@@ -755,7 +755,7 @@ function changePassword(userId, currentPassword, newPassword) {
  * Obtiene información de un contador a partir de su código único
  */
 function getContadorInfoByCode(contadorCode) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName(SHEETS.USUARIOS);
   const data = sheet.getDataRange().getValues();
   const cleanCode = String(contadorCode).trim().toUpperCase();
@@ -804,7 +804,7 @@ function sendWelcomeEmail(email, nombre, role) {
 // FUNCIONES DE NEGOCIO - DASHBOARD
 // =====================================================
 function getDashboardKpis(userId) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.getActive();
   
   // 1. Saldo Total (FlujoEfectivo)
   const flujoSheet = ss.getSheetByName(SHEETS.FLUJO_EFECTIVO);
@@ -2265,7 +2265,7 @@ function createUserFolder(userId, nombre) {
  */
 function getLinkedClients(contadorId) {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.getActive();
     const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
     const usersData = userSheet.getDataRange().getValues();
     
@@ -2273,17 +2273,23 @@ function getLinkedClients(contadorId) {
     let contadorCode = '';
     const searchId = String(contadorId).trim();
     
+    Logger.log('Buscando contador con ID: ' + searchId);
+    
     for (let i = 1; i < usersData.length; i++) {
       const row = usersData[i];
-      const rowId = String(row[0]).trim();
-      const rowEmail = String(row[4]).trim().toLowerCase();
-      const rowRFC = String(row[3]).trim().toUpperCase();
+      const rowId = String(row[0] || '').trim();
+      const rowEmail = String(row[4] || '').trim().toLowerCase();
+      const rowRFC = String(row[3] || '').trim().toUpperCase();
+      const rowRole = String(row[2] || '').trim().toLowerCase();
       const targetSearch = searchId.toLowerCase();
       
-      // Buscamos coincidencia flexible
-      if (row[2] === 'contador' && 
+      Logger.log('Verificando fila ' + i + ': ID=' + rowId + ', Role=' + rowRole + ', RFC=' + rowRFC);
+      
+      // Buscamos coincidencia flexible - el rol puede ser 'contador' o 'CONTADOR'
+      if ((rowRole === 'contador' || rowRole === 'contador(a)') || 
           (rowId === searchId || rowEmail === targetSearch || rowRFC === searchId.toUpperCase())) {
-        contadorCode = String(row[6]).trim().toUpperCase();
+        contadorCode = String(row[6] || '').trim().toUpperCase();
+        Logger.log('Contador encontrado! Codigo: ' + contadorCode);
         break;
       }
     }
@@ -2298,34 +2304,45 @@ function getLinkedClients(contadorId) {
     const gastosSheet = ss.getSheetByName(SHEETS.GASTOS);
     const gastosData = gastosSheet ? gastosSheet.getDataRange().getValues() : [];
     
+    Logger.log('Buscando clientes con codigo de contador: ' + contadorCode);
+    
     for (let i = 1; i < usersData.length; i++) {
       const row = usersData[i];
-      const linkedCode = String(row[7]).trim().toUpperCase();
-      if (row[2] === 'usuario' && linkedCode === contadorCode) {
+      const rowRole = String(row[2] || '').trim().toLowerCase();
+      const linkedCode = String(row[7] || '').trim().toUpperCase();
+      
+      Logger.log('Verificando cliente fila ' + i + ': Role=' + rowRole + ', LinkedCode=' + linkedCode);
+      
+      if ((rowRole === 'usuario' || rowRole === 'user' || rowRole === 'cliente') && linkedCode === contadorCode) {
         const userId = row[0];
         
         let gastosCount = 0;
         let totalGastos = 0;
         for (let j = 1; j < gastosData.length; j++) {
-          if (String(gastosData[j][1]).trim() === String(userId).trim()) {
+          if (String(gastosData[j][1] || '').trim() === String(userId || '').trim()) {
             gastosCount++;
             totalGastos += Number(gastosData[j][2]) || 0;
           }
         }
         
+        Logger.log('Cliente vinculado encontrado: ' + row[1]);
         clientes.push({
           id: userId,
           nombre: row[1],
+          code: row[3], // RFC como código
           email: row[4],
           rfc: row[3],
           status: 'activo',
           linkedAt: row[8] ? new Date(row[8]).toLocaleDateString('es-MX') : 'N/A',
+          joined: row[8] ? new Date(row[8]).toLocaleDateString('es-MX') : 'N/A',
           gastosCount: gastosCount,
-          totalGastos: totalGastos
+          totalGastos: totalGastos,
+          scoreFiscal: 85 // Valor por defecto
         });
       }
     }
     
+    Logger.log('Total clientes encontrados: ' + clientes.length);
     return { success: true, data: clientes };
   } catch (error) {
     Logger.log('Error en getLinkedClients: ' + error);
