@@ -1,5 +1,5 @@
 // CONT-AI Google Apps Script Backend API
-const API_BASE = 'https://script.google.com/macros/s/AKfycbwbjt7b83UXGOTe-ISie8LWmyJbljHMRmUKHfsAcTfeXCORNANcy2CX_IJn4QDBtXg3/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbxL0eONIxu2S9-lv7U_HWzXT9tzQslz9LhxMjHpUs1xVuv6WByEQ3mHiR8qsAo7hdzw/exec';
 
 // Google OAuth Client ID (configurable - replace with your own)
 // To get your Client ID: https://console.cloud.google.com/apis/credentials
@@ -161,18 +161,38 @@ export const contAiApi = {
     }
   },
 
-  // Chat Contador
-  getChat: async (userId: string): Promise<ApiResponse<any>> => {
+  // Chat / Mensajería
+  getConversacion: async (userId: string, otherId?: string): Promise<ApiResponse<any>> => {
+    // otherId is for future use when we support multiple conversations
     const params = new URLSearchParams({ api: 'chat', userId });
     const url = `${API_BASE}?${params}`;
     const res = await fetch(url);
     return res.json();
   },
 
-  sendMessage: async (userId: string, message: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'chat_send', userId, message });
+  getUsuario: async (userId: string, requesterId?: string): Promise<ApiResponse<any>> => {
+    // On the backend it might be get_client
+    const params = new URLSearchParams({ api: 'get_client', clientId: userId });
     const url = `${API_BASE}?${params}`;
     const res = await fetch(url);
+    return res.json();
+  },
+
+  sendMessage: async (userId: string, message: string, contadorId?: string, remitente?: string): Promise<ApiResponse<any>> => {
+    const url = API_BASE;
+    const body = JSON.stringify({
+      api: 'chat_send',
+      userId,
+      contadorId,
+      mensaje: message,
+      remitente: remitente || localStorage.getItem('role') || 'usuario'
+    });
+    
+    const res = await fetch(url, {
+      method: 'POST',
+      body: body,
+      redirect: 'follow'
+    });
     return res.json();
   },
 

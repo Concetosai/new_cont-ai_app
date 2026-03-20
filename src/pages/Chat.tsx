@@ -18,7 +18,7 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const currentUserId = localStorage.getItem('userId');
-  const currentUserRole = localStorage.getItem('role');
+  const currentUserRole = localStorage.getItem('userRole');
   const clienteId = searchParams.get('clienteId');
   const contadorIdParam = searchParams.get('contadorId');
   

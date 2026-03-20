@@ -44,7 +44,8 @@ const SHEETS = {
   CLIENTES: 'Clientes',
   IMPUESTOS: 'Impuestos',
   ALERTAS: 'Alertas',
-  FLUJO_EFECTIVO: 'FlujoEfectivo'
+  FLUJO_EFECTIVO: 'FlujoEfectivo',
+  CHAT: 'Chat'
 };
 
 // =====================================================
@@ -629,6 +630,7 @@ function googleRegister(data) {
     const rfc = additionalData?.rfc || '';
     const contadorCode = additionalData?.contadorCode || '';
     
+    let newContadorCode = '';
     if (role === 'contador') {
       newContadorCode = generateShortContadorCode();
     }
@@ -2047,35 +2049,49 @@ function calcularSimulacion(data) {
 // =====================================================
 function getMensajesChat(userId) {
   const ss = SpreadsheetApp.getActive();
-  let sheet = ss.getSheetByName('Chat');
+  let sheet = ss.getSheetByName(SHEETS.CHAT);
   if (!sheet) {
-    sheet = ss.insertSheet('Chat');
+    sheet = ss.insertSheet(SHEETS.CHAT);
     sheet.appendRow(['MensajeID', 'UserID', 'ContadorID', 'Mensaje', 'Fecha', 'Remitente']);
+    sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#f3f3f3');
   }
   
   const data = sheet.getDataRange().getValues();
   const mensajes = [];
   
-  data.slice(1).forEach(row => {
-    if (row[1] == userId || row[2] == userId) {
-      mensajes.push({
-        id: row[0],
-        mensaje: row[3],
-        fecha: Utilities.formatDate(row[4], 'GMT-6', 'dd/MM/yyyy HH:mm'),
-        remitente: row[5]
-      });
-    }
-  });
+  // Si hay datos (más allá de la cabecera)
+  if (data.length > 1) {
+    data.slice(1).forEach(row => {
+      // row[1] = UserID, row[2] = ContadorID
+      if (row[1] == userId || row[2] == userId) {
+        mensajes.push({
+          id: row[0],
+          userId: row[1],
+          contadorId: row[2],
+          mensaje: row[3],
+          fecha: Utilities.formatDate(row[4], 'GMT-6', 'dd/MM/yyyy HH:mm'),
+          remitente: row[5]
+        });
+      }
+    });
+  }
   
-  return mensajes.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+  // Ordenar por fecha cronológicamente
+  return mensajes.sort((a, b) => {
+    // Parser simple de la fecha dd/MM/yyyy HH:mm para el sort si es necesario, 
+    // pero como vienen de un objeto Date original en la hoja, podríamos guardarlo diferente.
+    // Usaremos el objeto original si es posible.
+    return 0; // El .forEach ya los lee en orden de inserción de filas, que es cronológico.
+  });
 }
 
 function enviarMensaje(mensajeData) {
   const ss = SpreadsheetApp.getActive();
-  let sheet = ss.getSheetByName('Chat');
+  let sheet = ss.getSheetByName(SHEETS.CHAT);
   if (!sheet) {
-    sheet = ss.insertSheet('Chat');
+    sheet = ss.insertSheet(SHEETS.CHAT);
     sheet.appendRow(['MensajeID', 'UserID', 'ContadorID', 'Mensaje', 'Fecha', 'Remitente']);
+    sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#f3f3f3');
   }
   
   sheet.appendRow([

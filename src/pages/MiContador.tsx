@@ -12,14 +12,6 @@ interface Client {
   status: string;
 }
 
-const timeline = [
-  { type: "system", text: "Gasto enviado para validación: Telecomunicaciones $2,450", time: "10:32 AM", date: "Hoy" },
-  { type: "contador", text: "Revisado. Gasto válido y categorizado correctamente bajo telecomunicaciones. Dedución aplicada.", time: "11:05 AM", date: "Hoy", status: "validated" },
-  { type: "system", text: "Gasto enviado para validación: Arrendamiento $18,000", time: "09:15 AM", date: "Ayer" },
-  { type: "contador", text: "Necesito el contrato de arrendamiento para respaldar esta deducción. ¿Puedes subirlo a la Bóveda?", time: "02:40 PM", date: "Ayer", status: "comment" },
-  { type: "user", text: "Ya subí el contrato a la Bóveda Fiscal.", time: "03:12 PM", date: "Ayer" },
-  { type: "contador", text: "Perfecto, gasto validado.", time: "04:00 PM", date: "Ayer", status: "validated" },
-];
 
 export default function MiContador() {
   const navigate = useNavigate();
@@ -29,6 +21,8 @@ export default function MiContador() {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [mensajes, setMensajes] = useState<any[]>([]);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -38,13 +32,19 @@ export default function MiContador() {
     if (!userId) return;
 
     if (role === 'contador') {
-      // Si es contador, cargar sus clientes vinculados
       loadClients(userId);
     } else {
-      // Si es usuario, cargar info del contador
       loadContadorInfo();
+      loadMessages(userId);
     }
-  }, []);
+
+    const interval = setInterval(() => {
+      const uId = localStorage.getItem('userId');
+      if (uId) loadMessages(uId, selectedClient?.id);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [selectedClient?.id]);
 
   const loadContadorInfo = async () => {
     const userId = localStorage.getItem('userId');
@@ -62,13 +62,28 @@ export default function MiContador() {
     }
   };
 
+  const loadMessages = async (userId: string, otherId?: string) => {
+    try {
+      const result = await contAiApi.getConversacion(userId);
+      if (result.success && Array.isArray(result.data)) {
+        // Filter by selected client if I'm a contador
+        if (userRole === 'contador' && otherId) {
+          setMensajes(result.data.filter((m: any) => m.userId === otherId || m.contadorId === otherId));
+        } else {
+          setMensajes(result.data);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
+    }
+  };
+
   const loadClients = async (contadorId: string) => {
     try {
       const result = await contAiApi.getLinkedClients(contadorId);
       if (result.success && Array.isArray(result.data)) {
         setClients(result.data);
-        // Seleccionar el primer cliente por defecto si hay uno
-        if (result.data.length > 0) {
+        if (result.data.length > 0 && !selectedClient) {
           setSelectedClient(result.data[0]);
         }
       }
@@ -77,6 +92,46 @@ export default function MiContador() {
       toast.error("Error al cargar clientes");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSend = async () => {
+
+    if (!message.trim()) return;
+    const userId = localStorage.getItem('userId') || "";
+    
+    setSending(true);
+    try {
+      let result;
+      if (userRole === 'contador') {
+        if (!selectedClient) return;
+        result = await contAiApi.sendMessage(selectedClient.id, message, userId, 'contador');
+      } else {
+        if (!contador?.id) {
+          // Reloader session or show error
+          const session = await contAiApi.getUserSettings(userId);
+          if (session.success && session.data.contador?.id) {
+            result = await contAiApi.sendMessage(userId, message, session.data.contador.id, 'usuario');
+          } else {
+            toast.error("No tienes un contador vinculado");
+            setSending(false);
+            return;
+          }
+        } else {
+          result = await contAiApi.sendMessage(userId, message, contador.id, 'usuario');
+        }
+      }
+
+      if (result.success) {
+        setMessage("");
+        loadMessages(userId, selectedClient?.id);
+      } else {
+        toast.error("Error al enviar mensaje");
+      }
+    } catch (error) {
+      toast.error("Error al enviar mensaje");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -158,32 +213,34 @@ export default function MiContador() {
                     </div>
                   </div>
 
-                  {/* Timeline de ejemplo */}
                   <div className="flex-1 overflow-y-auto space-y-3 py-4">
-                    {timeline.map((entry, i) => (
-                      <motion.div key={i}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 + i * 0.07 }}
-                        className={`flex ${entry.type === 'contador' ? 'justify-end' : entry.type === 'user' ? 'justify-start' : 'justify-center'}`}
-                      >
-                        {entry.type === 'system' ? (
-                          <div className="bg-slate-800/60 rounded-lg px-3 py-2 text-xs text-center" style={{ color: "hsl(210, 15%, 60%)" }}>
-                            {entry.text}
-                          </div>
-                        ) : (
-                          <div className={`max-w-[80%] rounded-lg px-3 py-2 ${entry.type === 'contador'
-                            ? 'bg-blue-500/20 border border-blue-500/30'
-                            : 'bg-slate-700/50 border border-slate-600/50'
-                            }`}>
-                            <p className="text-sm" style={{ color: "hsl(210, 20%, 90%)" }}>{entry.text}</p>
-                            <p className="text-xs mt-1" style={{ color: "hsl(210, 15%, 50%)" }}>
-                              {entry.time} · {entry.date}
-                            </p>
-                          </div>
-                        )}
-                      </motion.div>
-                    ))}
+                    {mensajes.length === 0 ? (
+                      <div className="text-center py-10 opacity-40">
+                        <MessageSquare className="w-10 h-10 mx-auto mb-2" />
+                        <p className="text-sm">No hay mensajes anteriores</p>
+                      </div>
+                    ) : (
+                      mensajes.map((entry, i) => {
+                        const isMyMessage = entry.remitente === 'contador';
+                        return (
+                          <motion.div key={i}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isMyMessage
+                              ? 'bg-blue-500/20 border border-blue-500/30'
+                              : 'bg-slate-700/50 border border-slate-600/50'
+                              }`}>
+                              <p className="text-sm" style={{ color: "hsl(210, 20%, 90%)" }}>{entry.mensaje}</p>
+                              <p className="text-xs mt-1" style={{ color: "hsl(210, 15%, 50%)" }}>
+                                {entry.fecha}
+                              </p>
+                            </div>
+                          </motion.div>
+                        );
+                      })
+                    )}
                   </div>
 
                   {/* Input de mensaje */}
@@ -192,17 +249,21 @@ export default function MiContador() {
                       type="text"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                      disabled={sending}
                       placeholder="Escribe un mensaje..."
-                      className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-2 text-sm"
+                      className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
                       style={{ color: "hsl(210, 20%, 90%)" }}
                     />
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="p-2 rounded-lg"
+                      onClick={handleSend}
+                      disabled={sending || !message.trim()}
+                      className="p-2 rounded-lg disabled:opacity-50"
                       style={{ background: "hsl(195, 100%, 50%)", color: "white" }}
                     >
-                      <Send className="w-5 h-5" />
+                      {sending ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
                     </motion.button>
                   </div>
                 </>
@@ -286,38 +347,38 @@ export default function MiContador() {
 
       {/* Timeline chat */}
       <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-        {timeline.map((entry, i) => (
-          <motion.div key={i}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 + i * 0.07 }}
-            className={`flex ${entry.type === 'contador' ? 'justify-end' : entry.type === 'user' ? 'justify-start' : 'justify-center'}`}
-          >
-            {entry.type === 'system' ? (
-              <div className="bg-slate-800/60 rounded-lg px-3 py-2 text-xs text-center" style={{ color: "hsl(210, 15%, 60%)" }}>
-                {entry.text}
-              </div>
-            ) : (
-              <div className={`max-w-[80%] rounded-lg px-3 py-2 ${entry.type === 'contador'
-                ? 'bg-blue-500/20 border border-blue-500/30'
-                : 'bg-slate-700/50 border border-slate-600/50'
-                }`}>
-                <p className="text-sm" style={{ color: "hsl(210, 20%, 90%)" }}>{entry.text}</p>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs" style={{ color: "hsl(210, 15%, 50%)" }}>
-                    {entry.time} · {entry.date}
-                  </p>
-                  {entry.status === 'validated' && (
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-                  )}
-                  {entry.status === 'comment' && (
-                    <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
-                  )}
+        {mensajes.length === 0 ? (
+          <div className="text-center py-20 opacity-40">
+            <MessageSquare className="w-12 h-12 mx-auto mb-3" />
+            <p>Aún no hay mensajes. ¡Envía uno para comenzar!</p>
+          </div>
+        ) : (
+          mensajes.map((entry, i) => {
+            const isMyMessage = entry.remitente === 'usuario';
+            return (
+              <motion.div key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isMyMessage
+                  ? 'bg-blue-500/20 border border-blue-500/30'
+                  : 'bg-slate-700/50 border border-slate-600/50'
+                  }`}>
+                  <p className="text-sm" style={{ color: "hsl(210, 20%, 90%)" }}>{entry.mensaje}</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs" style={{ color: "hsl(210, 15%, 50%)" }}>
+                      {entry.fecha}
+                    </p>
+                    {entry.remitente === 'contador' && (
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-500 ml-2" />
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </motion.div>
-        ))}
+              </motion.div>
+            );
+          })
+        )}
       </div>
 
       {/* Message input */}
@@ -326,17 +387,21 @@ export default function MiContador() {
           type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          disabled={sending}
           placeholder="Escribe un mensaje a tu contador..."
-          className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-2 text-sm"
+          className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
           style={{ color: "hsl(210, 20%, 90%)" }}
         />
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="p-2 rounded-lg"
+          onClick={handleSend}
+          disabled={sending || !message.trim()}
+          className="p-2 rounded-lg disabled:opacity-50"
           style={{ background: "hsl(195, 100%, 50%)", color: "white" }}
         >
-          <Send className="w-5 h-5" />
+          {sending ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
         </motion.button>
       </div>
     </div>

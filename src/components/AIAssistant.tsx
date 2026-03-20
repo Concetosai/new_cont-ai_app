@@ -15,7 +15,12 @@ export function AIAssistant() {
   const activeNotifs = notifications.filter((_, i) => !dismissed.includes(i));
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <motion.div 
+      drag
+      dragMomentum={false}
+      className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3"
+      style={{ touchAction: 'none' }}
+    >
       {/* Notification cards */}
       <AnimatePresence>
         {open && activeNotifs.map((notif, i) => (
@@ -113,6 +118,6 @@ export function AIAssistant() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

@@ -20,6 +20,7 @@ import Impuestos from "./pages/Impuestos.tsx";
 import Integraciones from "./pages/Integraciones.tsx";
 import Alerts from "./pages/Alerts.tsx";
 import Simulador from "./pages/Simulador.tsx";
+import Chat from "./pages/Chat.tsx";
 import ScoreFiscal from "./pages/ScoreFiscal.tsx";
 import ClientDashboard from "./pages/ClientDashboard.tsx";
 import ClientLayout from "./components/ClientLayout.tsx";
@@ -86,6 +87,7 @@ const App = () => (
             <Route path="/alertas" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
             <Route path="/simulador" element={<ProtectedRoute><Simulador /></ProtectedRoute>} />
             <Route path="/score" element={<ProtectedRoute><ScoreFiscal /></ProtectedRoute>} />
+            <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

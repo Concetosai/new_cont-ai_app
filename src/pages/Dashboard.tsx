@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { motion, type Variants } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import contAiApi from "@/lib/api";
 import {
   DollarSign,
   Users,
@@ -17,119 +19,156 @@ import {
   AlertCircle,
   Calculator,
   Shield,
+  Loader2,
 } from "lucide-react";
 
-const kpis = [
-  {
-    label: "Saldo Total",
-    value: "$248,500",
-    change: "+12.4%",
-    up: true,
-    icon: DollarSign,
-    color: "hsl(195, 100%, 50%)",
-  },
-  {
-    label: "Clientes Activos",
-    value: "34",
-    change: "+3 este mes",
-    up: true,
-    icon: Users,
-    color: "hsl(220, 90%, 60%)",
-  },
-  {
-    label: "Pendientes SAT",
-    value: "7",
-    change: "Urgente",
-    up: false,
-    icon: Clock,
-    color: "hsl(35, 95%, 55%)",
-  },
-  {
-    label: "Ingresos Mes",
-    value: "$82,300",
-    change: "+8.1%",
-    up: true,
-    icon: TrendingUp,
-    color: "hsl(145, 60%, 50%)",
-  },
-];
-
-const recentActivity = [
-  {
-    type: "success",
-    text: "Factura CFDI enviada — TechCorp MX",
-    time: "Hace 2h",
-    amount: "+$12,500",
-  },
-  {
-    type: "warning",
-    text: "Gasto pendiente de categorizar",
-    time: "Hace 4h",
-    amount: "-$3,200",
-  },
-  {
-    type: "success",
-    text: "Declaración ISR validada por contador",
-    time: "Ayer",
-    amount: "",
-  },
-  {
-    type: "alert",
-    text: "Vencimiento IMSS en 3 días",
-    time: "Programado",
-    amount: "-$8,900",
-  },
-];
-
-const featureButtons = [
-  {
-    title: "🟡 Impuestos SAT",
-    desc: "ISR/IVA automático",
-    icon: Calculator,
-    path: "/impuestos",
-    color: "hsl(35, 95%, 55%)",
-  },
-  {
-    title: "⚫ Integraciones",
-    desc: "ML/TikTok/Shopify",
-    icon: ShoppingCart,
-    path: "/integraciones",
-    color: "hsl(270, 80%, 60%)",
-  },
-  {
-    title: "💥 Simulador",
-    desc: "Calcula escenarios",
-    icon: Brain,
-    path: "/simulador",
-    color: "hsl(195, 100%, 50%)",
-  },
-  {
-    title: "🔴 Alertas",
-    desc: "Notificaciones urgentes",
-    icon: AlertCircle,
-    path: "/alertas",
-    color: "hsl(0, 72%, 55%)",
-  },
-  {
-    title: "💥 Score Fiscal",
-    desc: "Tu salud ante SAT",
-    icon: Shield,
-    path: "/score",
-    color: "hsl(145, 60%, 50%)",
-  },
-];
-
-const container: Variants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
-};
-
-const item: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-};
-
 export default function Dashboard() {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    saldoTotal: 0,
+    clientesActivos: 0,
+    pendientesSAT: 0,
+    ingresosMes: 0
+  });
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const loadDashboard = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
+
+    try {
+      const result = await contAiApi.getDashboard(userId);
+      if (result.success) {
+        setStats(result.data);
+      }
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const kpis = [
+    {
+      label: "Saldo Total",
+      value: `$${stats.saldoTotal.toLocaleString()}`,
+      change: "+12.4%", // Mock change
+      up: true,
+      icon: DollarSign,
+      color: "hsl(195, 100%, 50%)",
+    },
+    {
+      label: "Clientes Activos",
+      value: stats.clientesActivos.toString(),
+      change: "Vínculos reales",
+      up: true,
+      icon: Users,
+      color: "hsl(220, 90%, 60%)",
+    },
+    {
+      label: "Pendientes SAT",
+      value: stats.pendientesSAT.toString(),
+      change: "Urgente",
+      up: false,
+      icon: Clock,
+      color: "hsl(35, 95%, 55%)",
+    },
+    {
+      label: "Ingresos Mes",
+      value: `$${stats.ingresosMes.toLocaleString()}`,
+      change: "+8.1%", // Mock change
+      up: true,
+      icon: TrendingUp,
+      color: "hsl(145, 60%, 50%)",
+    },
+  ];
+
+  const recentActivity = [
+    {
+      type: "success",
+      text: "Factura CFDI enviada — TechCorp MX",
+      time: "Hace 2h",
+      amount: "+$12,500",
+    },
+    {
+      type: "warning",
+      text: "Gasto pendiente de categorizar",
+      time: "Hace 4h",
+      amount: "-$3,200",
+    },
+    {
+      type: "success",
+      text: "Declaración ISR validada por contador",
+      time: "Ayer",
+      amount: "",
+    },
+    {
+      type: "alert",
+      text: "Vencimiento IMSS en 3 días",
+      time: "Programado",
+      amount: "-$8,900",
+    },
+  ];
+
+  const featureButtons = [
+    {
+      title: "🟡 Impuestos SAT",
+      desc: "ISR/IVA automático",
+      icon: Calculator,
+      path: "/impuestos",
+      color: "hsl(35, 95%, 55%)",
+    },
+    {
+      title: "⚫ Integraciones",
+      desc: "ML/TikTok/Shopify",
+      icon: ShoppingCart,
+      path: "/integraciones",
+      color: "hsl(270, 80%, 60%)",
+    },
+    {
+      title: "💥 Simulador",
+      desc: "Calcula escenarios",
+      icon: Brain,
+      path: "/simulador",
+      color: "hsl(195, 100%, 50%)",
+    },
+    {
+      title: "🔴 Alertas",
+      desc: "Notificaciones urgentes",
+      icon: AlertCircle,
+      path: "/alertas",
+      color: "hsl(0, 72%, 55%)",
+    },
+    {
+      title: "💥 Score Fiscal",
+      desc: "Tu salud ante SAT",
+      icon: Shield,
+      path: "/score",
+      color: "hsl(145, 60%, 50%)",
+    },
+  ];
+
+  const container: Variants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.08 } },
+  };
+
+  const item: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-56px)] flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* ========== NUEVA SECCIÓN DE ACCESO RÁPIDO ========== */}
