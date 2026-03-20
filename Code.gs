@@ -436,8 +436,8 @@ function registerUser(data) {
   let linkedContadorCode = null;
 
   if (data.role === 'contador') {
-    // Generar código único para el contador (para QR)
-    contadorCode = Utilities.getUuid();
+    // Generar código amigable para el contador (ej: CONT-X821)
+    contadorCode = generateShortContadorCode();
   } else if (data.role === 'usuario') {
     // Si es usuario, puede venir con un código de contador (escaneado)
     linkedContadorCode = data.contadorCode || null;
@@ -623,10 +623,8 @@ function googleRegister(data) {
     const rfc = additionalData?.rfc || '';
     const contadorCode = additionalData?.contadorCode || '';
     
-    // Generar código único para contadores
-    let newContadorCode = '';
     if (role === 'contador') {
-      newContadorCode = 'CNT' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      newContadorCode = generateShortContadorCode();
     }
     
     // Crear carpeta en Drive si es posible
@@ -2521,6 +2519,18 @@ function getContadorCode(userId) {
     Logger.log('Error en getContadorCode: ' + error);
     return { success: false, error: error.toString() };
   }
+}
+
+/**
+ * Genera un código corto y legible para contadores (ej: CONT-X821)
+ */
+function generateShortContadorCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Evitar 0, O, 1, I para evitar confusiones
+  let code = 'CONT-';
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
 // FIN DEL ARCHIVO
