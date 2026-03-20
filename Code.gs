@@ -2285,11 +2285,15 @@ function getLinkedClients(contadorId) {
       
       Logger.log('Verificando fila ' + i + ': ID=' + rowId + ', Role=' + rowRole + ', RFC=' + rowRFC);
       
-      // Buscamos coincidencia flexible - el rol puede ser 'contador' o 'CONTADOR'
-      if ((rowRole === 'contador' || rowRole === 'contador(a)') || 
-          (rowId === searchId || rowEmail === targetSearch || rowRFC === searchId.toUpperCase())) {
+      // Verificar que el usuario sea contador Y coincida con el ID/email/RFC
+      const isContador = (rowRole === 'contador' || rowRole === 'contador(a)');
+      const matchesId = (rowId === searchId);
+      const matchesEmail = rowEmail && rowEmail === targetSearch;
+      const matchesRFC = rowRFC && rowRFC === searchId.toUpperCase();
+      
+      if (isContador && (matchesId || matchesEmail || matchesRFC)) {
         contadorCode = String(row[6] || '').trim().toUpperCase();
-        Logger.log('Contador encontrado! Codigo: ' + contadorCode);
+        Logger.log('*** CONTADOR ENCONTRADO *** Codigo: ' + contadorCode + ' - Nombre: ' + row[1]);
         break;
       }
     }

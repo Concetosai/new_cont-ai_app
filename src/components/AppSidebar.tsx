@@ -52,8 +52,9 @@ const navItems = [
   { title: "💥 Score Fiscal", url: "/score", icon: ShieldCheck },
 
   // Team
-  { title: "Mi Contador", url: "/contador", icon: MessageSquare },
+  { title: "Mensajería", url: "/contador", icon: MessageSquare, role: "usuario" },
   { title: "Clientes", url: "/clients", icon: Users, role: "contador" }, // Only for contadores
+  { title: "Mensajería", url: "/chat", icon: MessageSquare, role: "contador" }, // Only for contadores
   { title: "Bóveda Fiscal", url: "/boveda", icon: Vault },
   { title: "Configuración", url: "/settings", icon: Settings },
 ];
@@ -106,14 +107,14 @@ export function AppSidebar() {
         </div>
 
         {userRole === 'contador' && !collapsed && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider"
-            style={{ 
-              background: "hsl(145 60% 40% / 0.1)", 
+            style={{
+              background: "hsl(145 60% 40% / 0.1)",
               border: "1px solid hsl(145 60% 40% / 0.3)",
-              color: "hsl(145, 60%, 65%)" 
+              color: "hsl(145, 60%, 65%)"
             }}
           >
             <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_hsl(145,60%,50%)]" />
@@ -136,11 +137,10 @@ export function AppSidebar() {
                       <NavLink
                         to={item.url}
                         end
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                          active
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${active
                             ? "active"
                             : ""
-                        }`}
+                          }`}
                         style={{
                           color: active ? "hsl(195, 100%, 60%)" : "hsl(210, 15%, 60%)",
                           background: active ? "hsl(195 100% 50% / 0.12)" : "transparent",
@@ -176,7 +176,7 @@ export function AppSidebar() {
           <LogOut className="w-3.5 h-3.5" />
           {!collapsed && <span>Cerrar Sesión</span>}
         </button>
-        
+
         {!collapsed && (
           <a
             href="https://wa.me/528332892730"
