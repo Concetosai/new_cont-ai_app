@@ -1,5 +1,5 @@
 // CONT-AI Google Apps Script Backend API
-const API_BASE = 'https://script.google.com/macros/s/AKfycbwwH_M6BBQ6yA0B7SPqbie84_R_Ed-h0XAfVbRA6W7PNx3Fw3_kAcwXciZC-GlxfQir/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbyv44c0py--G-bj9H9aBHSq9lK83_i2GPoKNVEe0LWQp1JDxB-3kLsgZdLPkyMf7qr3/exec';
 
 // Google OAuth Client ID (configurable - replace with your own)
 // To get your Client ID: https://console.cloud.google.com/apis/credentials
