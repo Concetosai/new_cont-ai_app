@@ -232,6 +232,12 @@ function handleRequest(e, method) {
         result = getContadorCode(userIdCode);
         break;
         
+      case 'regenerate_contador_code':
+        const userIdRegen = e.parameter.userId;
+        if (!userIdRegen) throw new Error('userId requerido');
+        result = regenerateContadorCode(userIdRegen);
+        break;
+        
       case 'change_password':
         if (!postDataContents) throw new Error('No se recibió el cuerpo de la petición');
         const passwordData = JSON.parse(postDataContents);
@@ -2517,6 +2523,32 @@ function getContadorCode(userId) {
     return { success: false, error: 'Usuario no encontrado' };
   } catch (error) {
     Logger.log('Error en getContadorCode: ' + error);
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Genera un nuevo código corto para un contador
+ */
+function regenerateContadorCode(userId) {
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const userSheet = ss.getSheetByName(SHEETS.USUARIOS);
+    const data = userSheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === userId && data[i][2] === 'contador') {
+        const newCode = generateShortContadorCode();
+        userSheet.getRange(i + 1, 7).setValue(newCode); // Columna G
+        return { 
+          success: true, 
+          contadorCode: newCode 
+        };
+      }
+    }
+    return { success: false, error: 'Usuario no encontrado o no es contador' };
+  } catch (error) {
+    Logger.log('Error en regenerateContadorCode: ' + error);
     return { success: false, error: error.toString() };
   }
 }
