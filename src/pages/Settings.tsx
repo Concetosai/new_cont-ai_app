@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Settings, Shield, Mail, User, Zap, QrCode, Copy, ArrowRight, Download, Sun, Moon, Lock, KeyRound, Check, Eye, EyeOff, Users, CheckCircle } from "lucide-react";
+import { Settings, Shield, Mail, User, Zap, QrCode, Copy, ArrowRight, Download, Sun, Moon, Lock, KeyRound, Check, Eye, EyeOff, Users, CheckCircle, RefreshCw } from "lucide-react";
 
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -118,6 +118,26 @@ export default function UserSettings() {
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
+  };
+
+  const handleRegenerateCode = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
+
+    if (!confirm('¿Estás seguro? Se generará un nuevo código corto (ej: CONT-X8) y el anterior dejará de funcionar para nuevas vinculaciones.')) return;
+
+    try {
+      setLoading(true);
+      const result = await contAiApi.regenerateContadorCode(userId);
+      if (result.success) {
+        setContadorCode(result.data.contadorCode);
+        toast.success('Nuevo código corto generado correctamente');
+      }
+    } catch (error) {
+      toast.error('Error al regenerar código');
+    } finally {
+      setLoading(false);
+    }
   };
 
 const handleVincularContador = async () => {
@@ -444,6 +464,13 @@ const handleChangePassword = async () => {
                   Descargar QR
                 </button>
               </div>
+              <button
+                onClick={handleRegenerateCode}
+                className="mt-4 text-xs text-slate-500 hover:text-purple-400 transition-colors flex items-center gap-1 mx-auto"
+              >
+                <RefreshCw className="w-3 h-3" />
+                ¿Usar código corto amigable? (Recomendado)
+              </button>
             </div>
           ) : (
             <div className="text-center py-8">

@@ -291,6 +291,13 @@ export const contAiApi = {
     return res.json();
   },
 
+  regenerateContadorCode: async (userId: string): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams({ api: 'regenerate_contador_code', userId });
+    const url = `${API_BASE}?${params}`;
+    const res = await fetch(url);
+    return res.json();
+  },
+
   // Get client details
   getClient: async (clientId: string): Promise<ApiResponse<any>> => {
     const params = new URLSearchParams({ api: 'get_client', clientId });
