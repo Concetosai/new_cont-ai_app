@@ -9,7 +9,7 @@ export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [loading, setLoading] = useState(true);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [sending, setSending] = useState(false);
@@ -19,16 +19,19 @@ export default function Chat() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
+  // Limitar a los últimos 15 mensajes para mostrar solo mensajes recientes
+  const MENSAJES_RECIENTES_LIMIT = 15;
+
   const currentUserId = localStorage.getItem('userId');
   const currentUserRole = localStorage.getItem('userRole');
   const clienteIdParam = searchParams.get('clienteId');
-  
+
   const isContador = currentUserRole === 'contador';
-  
+
   const loadConversation = async (targetId: string) => {
     if (!currentUserId || !targetId) return;
-    
+
     try {
       let result;
       if (isContador) {
@@ -38,9 +41,27 @@ export default function Chat() {
         // Para el cliente: targetId es el contador (otherUser.id)
         result = await contAiApi.getConversacion(currentUserId, targetId);
       }
-      
+
       if (result?.success) {
-        setMensajes(result.data?.mensajes || []);
+        let msgs = result.data?.mensajes || [];
+
+        // Filtrar mensajes por la conversación correcta (userId y contadorId)
+        const userId = isContador ? targetId : currentUserId;
+        const contadorId = isContador ? currentUserId : targetId;
+
+        msgs = msgs.filter((msg: any) =>
+          (msg.userId === userId || msg.UserID === userId) &&
+          (msg.contadorId === contadorId || msg.ContadorID === contadorId)
+        );
+
+        // Ordenar por fecha (más antiguos primero)
+        msgs.sort((a: any, b: any) => {
+          const fechaA = new Date(a.fecha || a.Fecha || 0).getTime();
+          const fechaB = new Date(b.fecha || b.Fecha || 0).getTime();
+          return fechaA - fechaB;
+        });
+
+        setMensajes(msgs);
       }
     } catch (error) {
       console.error('Error loading conversation:', error);
@@ -54,17 +75,17 @@ export default function Chat() {
       navigate('/auth');
       return;
     }
-    
+
     if (isContador) {
       loadLinkedClients();
     } else {
       loadAccountantInfo();
     }
   }, [currentUserId, isContador]);
-  
+
   useEffect(() => {
     const targetId = isContador ? clienteIdParam : otherUser?.id;
-    
+
     if (currentUserId && targetId) {
       console.log('Chat: Loading conversation with targetId:', targetId);
       loadConversation(targetId);
@@ -77,7 +98,7 @@ export default function Chat() {
     } else {
       setLoading(false);
     }
-    
+
     // Polling cada 3 segundos para ver nuevos mensajes
     const interval = setInterval(() => {
       const currentTargetId = isContador ? searchParams.get('clienteId') : otherUser?.id;
@@ -88,15 +109,15 @@ export default function Chat() {
 
     return () => clearInterval(interval);
   }, [currentUserId, clienteIdParam, isContador, otherUser?.id]);
-  
+
   useEffect(() => {
     scrollToBottom();
   }, [mensajes]);
-  
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-  
+
   const loadLinkedClients = async () => {
     setLoadingContacts(true);
     try {
@@ -110,7 +131,7 @@ export default function Chat() {
       setLoadingContacts(false);
     }
   };
-  
+
   const loadAccountantInfo = async () => {
     try {
       const result = await contAiApi.getUserSettings(currentUserId!);
@@ -121,7 +142,7 @@ export default function Chat() {
       console.error('Error loading accountant info:', error);
     }
   };
-  
+
   const loadSpecificUserInfo = async (id: string) => {
     try {
       const result = await contAiApi.getUsuario(id);
@@ -132,19 +153,19 @@ export default function Chat() {
       console.error('Error loading user info:', error);
     }
   };
-  
+
   // loadConversation refactored to be at the top level for use in interval and useEffect
-  
-  
+
+
   const handleEnviar = async () => {
     if (!nuevoMensaje.trim() || !currentUserId) {
       console.log('No hay mensaje o no hay usuario actual');
       return;
     }
-    
+
     // Obtener el destinatario
     const destId = isContador ? clienteIdParam : otherUser?.id;
-    
+
     if (!destId) {
       console.log('No se pudo determinar el destinatario');
       toast({ title: "Error", description: "No se ha seleccionado un destinatario", variant: "destructive" });
@@ -166,7 +187,7 @@ export default function Chat() {
         contadorId: accountantId,
         remitente: senderRole
       });
-      
+
       if (result.success) {
         setNuevoMensaje("");
         toast({ title: "Mensaje enviado", description: "El mensaje se envió correctamente" });
@@ -191,7 +212,7 @@ export default function Chat() {
       // El useEffect principal ya llamará a loadConversation
     }
   }, [clienteIdParam]);
-  
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -199,11 +220,11 @@ export default function Chat() {
     }
   };
 
-  const filteredContacts = contacts.filter(c => 
-    c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredContacts = contacts.filter(c =>
+    c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (c.rfc && c.rfc.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-  
+
   return (
     <div className="flex h-[calc(100vh-56px)] overflow-hidden bg-slate-950/20">
       {/* Sidebar de Contactos */}
@@ -215,13 +236,13 @@ export default function Chat() {
               {isContador ? "Mis Clientes" : "Mi Contador"}
             </h2>
           </div>
-          
+
           {isContador && (
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input 
-                type="text" 
-                placeholder="Buscar cliente..." 
+              <input
+                type="text"
+                placeholder="Buscar cliente..."
                 className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl py-2 pl-10 pr-4 text-sm focus:ring-1 focus:ring-blue-500 outline-none transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -242,15 +263,13 @@ export default function Chat() {
                 <button
                   key={contact.id}
                   onClick={() => setSearchParams({ clienteId: contact.id })}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                    clienteIdParam === contact.id 
-                    ? 'bg-blue-500/20 border border-blue-500/30' 
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${clienteIdParam === contact.id
+                    ? 'bg-blue-500/20 border border-blue-500/30'
                     : 'hover:bg-slate-800/30 border border-transparent'
-                  }`}
+                    }`}
                 >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${
-                    clienteIdParam === contact.id ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-400'
-                  }`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${clienteIdParam === contact.id ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-400'
+                    }`}>
                     {contact.nombre.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                   </div>
                   <div className="text-left flex-1 min-w-0">
@@ -333,28 +352,36 @@ export default function Chat() {
                     <p className="text-xs text-slate-600">Comienza a escribir abajo</p>
                   </div>
                 ) : (
-                  mensajes.map((msg, index) => {
-                    const isMyMessage = msg.remitente?.toLowerCase() === currentUserRole?.toLowerCase();
-                    return (
-                      <motion.div
-                        key={msg.id || index}
-                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`max-w-[75%] p-3 rounded-2xl ${
-                          isMyMessage 
-                          ? 'bg-blue-600 text-white rounded-tr-none shadow-lg' 
-                          : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700/50'
-                        }`}>
-                          <p className="text-sm leading-relaxed">{msg.mensaje}</p>
-                          <div className={`text-[10px] mt-1.5 flex items-center gap-1 ${isMyMessage ? 'text-blue-100/60' : 'text-slate-500'}`}>
-                            {msg.fecha}
+                  <>
+                    {mensajes.length > MENSAJES_RECIENTES_LIMIT && (
+                      <div className="text-center py-2">
+                        <p className="text-xs text-slate-500">
+                          {mensajes.length - MENSAJES_RECIENTES_LIMIT} mensajes anteriores
+                        </p>
+                      </div>
+                    )}
+                    {mensajes.slice(-MENSAJES_RECIENTES_LIMIT).map((msg, index) => {
+                      const isMyMessage = msg.remitente?.toLowerCase() === currentUserRole?.toLowerCase();
+                      return (
+                        <motion.div
+                          key={msg.id || index}
+                          initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`max-w-[75%] p-3 rounded-2xl ${isMyMessage
+                            ? 'bg-blue-600 text-white rounded-tr-none shadow-lg'
+                            : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700/50'
+                            }`}>
+                            <p className="text-sm leading-relaxed">{msg.mensaje}</p>
+                            <div className={`text-[10px] mt-1.5 flex items-center gap-1 ${isMyMessage ? 'text-blue-100/60' : 'text-slate-500'}`}>
+                              {msg.fecha}
+                            </div>
                           </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })
+                        </motion.div>
+                      );
+                    })}
+                  </>
                 )}
               </AnimatePresence>
               <div ref={messagesEndRef} />

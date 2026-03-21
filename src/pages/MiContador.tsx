@@ -24,6 +24,9 @@ export default function MiContador() {
   const [mensajes, setMensajes] = useState<any[]>([]);
   const [sending, setSending] = useState(false);
 
+  // Limitar a los últimos 15 mensajes para mostrar solo mensajes recientes
+  const MENSAJES_RECIENTES_LIMIT = 15;
+
   useEffect(() => {
     const userId = localStorage.getItem('userId');
     const role = localStorage.getItem('userRole');
@@ -66,12 +69,32 @@ export default function MiContador() {
     try {
       const result = await contAiApi.getConversacion(userId);
       if (result.success && Array.isArray(result.data)) {
+        let msgs = result.data;
+
         // Filter by selected client if I'm a contador
         if (userRole === 'contador' && otherId) {
-          setMensajes(result.data.filter((m: any) => m.userId === otherId || m.contadorId === otherId));
-        } else {
-          setMensajes(result.data);
+          msgs = msgs.filter((m: any) =>
+            (m.userId === otherId || m.UserID === otherId) &&
+            (m.contadorId === userId || m.ContadorID === userId)
+          );
+        } else if (userRole !== 'contador') {
+          // For regular users, filter by contador ID (use contador.id if available)
+          const contadorIdToFilter = otherId || contador?.id;
+          if (contadorIdToFilter) {
+            msgs = msgs.filter((m: any) =>
+              (m.contadorId === contadorIdToFilter || m.ContadorID === contadorIdToFilter)
+            );
+          }
         }
+
+        // Ordenar por fecha (más antiguos primero)
+        msgs.sort((a: any, b: any) => {
+          const fechaA = new Date(a.fecha || a.Fecha || 0).getTime();
+          const fechaB = new Date(b.fecha || b.Fecha || 0).getTime();
+          return fechaA - fechaB;
+        });
+
+        setMensajes(msgs);
       }
     } catch (error) {
       console.error("Error loading messages:", error);
@@ -99,26 +122,37 @@ export default function MiContador() {
 
     if (!message.trim()) return;
     const userId = localStorage.getItem('userId') || "";
-    
+
     setSending(true);
     try {
       let result;
+      const messageData = {
+        userId: userId,
+        mensaje: message,
+        remitente: userRole === 'contador' ? 'contador' : 'usuario',
+        contadorId: ''
+      };
+
       if (userRole === 'contador') {
         if (!selectedClient) return;
-        result = await contAiApi.sendMessage(selectedClient.id, message, userId, 'contador');
+        messageData.userId = selectedClient.id;
+        messageData.contadorId = userId;
+        result = await contAiApi.sendMessage(messageData);
       } else {
         if (!contador?.id) {
           // Reloader session or show error
           const session = await contAiApi.getUserSettings(userId);
           if (session.success && session.data.contador?.id) {
-            result = await contAiApi.sendMessage(userId, message, session.data.contador.id, 'usuario');
+            messageData.contadorId = session.data.contador.id;
+            result = await contAiApi.sendMessage(messageData);
           } else {
             toast.error("No tienes un contador vinculado");
             setSending(false);
             return;
           }
         } else {
-          result = await contAiApi.sendMessage(userId, message, contador.id, 'usuario');
+          messageData.contadorId = contador.id;
+          result = await contAiApi.sendMessage(messageData);
         }
       }
 
@@ -220,26 +254,35 @@ export default function MiContador() {
                         <p className="text-sm">No hay mensajes anteriores</p>
                       </div>
                     ) : (
-                      mensajes.map((entry, i) => {
-                        const isMyMessage = entry.remitente === 'contador';
-                        return (
-                          <motion.div key={i}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isMyMessage
-                              ? 'bg-blue-500/20 border border-blue-500/30'
-                              : 'bg-slate-700/50 border border-slate-600/50'
-                              }`}>
-                              <p className="text-sm" style={{ color: "hsl(210, 20%, 90%)" }}>{entry.mensaje}</p>
-                              <p className="text-xs mt-1" style={{ color: "hsl(210, 15%, 50%)" }}>
-                                {entry.fecha}
-                              </p>
-                            </div>
-                          </motion.div>
-                        );
-                      })
+                      <>
+                        {mensajes.length > MENSAJES_RECIENTES_LIMIT && (
+                          <div className="text-center py-2">
+                            <p className="text-xs text-slate-500">
+                              {mensajes.length - MENSAJES_RECIENTES_LIMIT} mensajes anteriores
+                            </p>
+                          </div>
+                        )}
+                        {mensajes.slice(-MENSAJES_RECIENTES_LIMIT).map((entry, i) => {
+                          const isMyMessage = entry.remitente === 'contador';
+                          return (
+                            <motion.div key={i}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}
+                            >
+                              <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isMyMessage
+                                ? 'bg-blue-500/20 border border-blue-500/30'
+                                : 'bg-slate-700/50 border border-slate-600/50'
+                                }`}>
+                                <p className="text-sm" style={{ color: "hsl(210, 20%, 90%)" }}>{entry.mensaje}</p>
+                                <p className="text-xs mt-1" style={{ color: "hsl(210, 15%, 50%)" }}>
+                                  {entry.fecha}
+                                </p>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </>
                     )}
                   </div>
 
@@ -353,31 +396,40 @@ export default function MiContador() {
             <p>Aún no hay mensajes. ¡Envía uno para comenzar!</p>
           </div>
         ) : (
-          mensajes.map((entry, i) => {
-            const isMyMessage = entry.remitente === 'usuario';
-            return (
-              <motion.div key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isMyMessage
-                  ? 'bg-blue-500/20 border border-blue-500/30'
-                  : 'bg-slate-700/50 border border-slate-600/50'
-                  }`}>
-                  <p className="text-sm" style={{ color: "hsl(210, 20%, 90%)" }}>{entry.mensaje}</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs" style={{ color: "hsl(210, 15%, 50%)" }}>
-                      {entry.fecha}
-                    </p>
-                    {entry.remitente === 'contador' && (
-                      <CheckCircle className="w-3.5 h-3.5 text-emerald-500 ml-2" />
-                    )}
+          <>
+            {mensajes.length > MENSAJES_RECIENTES_LIMIT && (
+              <div className="text-center py-2">
+                <p className="text-xs text-slate-500">
+                  {mensajes.length - MENSAJES_RECIENTES_LIMIT} mensajes anteriores
+                </p>
+              </div>
+            )}
+            {mensajes.slice(-MENSAJES_RECIENTES_LIMIT).map((entry, i) => {
+              const isMyMessage = entry.remitente === 'usuario';
+              return (
+                <motion.div key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-[80%] rounded-lg px-3 py-2 ${isMyMessage
+                    ? 'bg-blue-500/20 border border-blue-500/30'
+                    : 'bg-slate-700/50 border border-slate-600/50'
+                    }`}>
+                    <p className="text-sm" style={{ color: "hsl(210, 20%, 90%)" }}>{entry.mensaje}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs" style={{ color: "hsl(210, 15%, 50%)" }}>
+                        {entry.fecha}
+                      </p>
+                      {entry.remitente === 'contador' && (
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-500 ml-2" />
+                      )}
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            );
-          })
+                </motion.div>
+              );
+            })}
+          </>
         )}
       </div>
 
