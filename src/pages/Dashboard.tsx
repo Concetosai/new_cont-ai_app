@@ -20,9 +20,11 @@ import {
   Calculator,
   Shield,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
 
 export default function Dashboard() {
+  const userRole = localStorage.getItem('userRole');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     saldoTotal: 0,
@@ -129,6 +131,13 @@ export default function Dashboard() {
       color: "hsl(270, 80%, 60%)",
     },
     {
+      title: "💬 Mensajería",
+      desc: "Gestión de chats vinculados",
+      icon: MessageCircle,
+      path: userRole === 'contador' ? "/clients" : "/chat",
+      color: "hsl(200, 100%, 60%)",
+    },
+    {
       title: "💥 Simulador",
       desc: "Calcula escenarios",
       icon: Brain,
@@ -169,6 +178,8 @@ export default function Dashboard() {
     );
   }
 
+
+
   return (
     <div className="p-6 space-y-6">
       {/* ========== NUEVA SECCIÓN DE ACCESO RÁPIDO ========== */}
@@ -198,20 +209,20 @@ export default function Dashboard() {
               Facturas
             </Button>
           </Link>
-          <Link to="/contador">
+          <Link to={userRole === 'contador' ? "/clients" : "/chat"}>
             <Button
               variant="outline"
               className="w-full h-16 text-base font-medium hover:bg-primary/10 hover:border-primary transition-all"
             >
-              Mi Contador
+              {userRole === 'contador' ? "Mensajería" : "Mensajería"}
             </Button>
           </Link>
-          <Link to="/dashboard">
+          <Link to="/settings">
             <Button
               variant="outline"
               className="w-full h-16 text-base font-medium hover:bg-primary/10 hover:border-primary transition-all"
             >
-              Dashboard
+              Configuración
             </Button>
           </Link>
         </div>

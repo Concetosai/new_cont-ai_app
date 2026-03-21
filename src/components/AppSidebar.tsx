@@ -52,8 +52,8 @@ const navItems = [
   { title: "💥 Score Fiscal", url: "/score", icon: ShieldCheck },
 
   // Team
-  { title: "Mensajería", url: "/contador", icon: MessageSquare, role: "usuario" },
-  { title: "Clientes", url: "/clients", icon: Users, role: "contador" }, // Only for contadores // Only for contadores
+  { title: "Mensajería", url: "/chat", icon: MessageSquare, role: "usuario" },
+  { title: "Mensajería", url: "/clients", icon: MessageSquare, role: "contador" },
   { title: "Bóveda Fiscal", url: "/boveda", icon: Vault },
   { title: "Configuración", url: "/settings", icon: Settings },
 ];

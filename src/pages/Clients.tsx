@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Eye, Copy, Calendar, CheckCircle, Clock, User, Link, ExternalLink, FileText } from 'lucide-react';
+import { Users, Eye, Copy, Calendar, CheckCircle, Clock, User, Link, ExternalLink, FileText, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import contAiApi from '@/lib/api';
 import { toast } from 'sonner';
@@ -181,6 +181,13 @@ export default function Clients() {
                     </td>
                     <td className="py-4 pl-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
+                        <button 
+                          onClick={() => navigate(`/chat?clienteId=${client.id}`)}
+                          className="p-1.5 rounded-lg hover:bg-emerald-500/20 transition-all"
+                          title="Enviar mensaje"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 text-emerald-400 hover:text-emerald-300" />
+                        </button>
                         <button 
                           onClick={() => copyCode(client.code)}
                           className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-all"
