@@ -2049,33 +2049,35 @@ function calcularSimulacion(data) {
 // FUNCIONES DE NEGOCIO - CHAT / CONTADOR
 // =====================================================
 function getMensajesChat(userId, otherId) {
-  const ss = SpreadsheetApp.getActive();
-  let sheet = ss.getSheetByName(SHEETS.CHAT);
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEETS.CHAT);
-    sheet.appendRow(['MensajeID', 'UserID', 'ContadorID', 'Mensaje', 'Fecha', 'Remitente']);
-    sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#f3f3f3');
-  }
-  
-  const data = sheet.getDataRange().getValues();
-  const mensajes = [];
-  
-  const id1 = String(userId || '').trim();
-  const id2 = String(otherId || '').trim();
-  
-  // Si hay datos (más allá de la cabecera)
-  if (data.length > 1) {
-    data.slice(1).forEach(row => {
+  try {
+    const ss = SpreadsheetApp.getActive();
+    let sheet = ss.getSheetByName(SHEETS.CHAT);
+    if (!sheet) {
+      sheet = ss.insertSheet(SHEETS.CHAT);
+      sheet.appendRow(['MensajeID', 'UserID', 'ContadorID', 'Mensaje', 'Fecha', 'Remitente']);
+      sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#f3f3f3');
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    const mensajes = [];
+    
+    const id1 = String(userId || '').trim();
+    const id2 = String(otherId || '').trim();
+    
+    Logger.log(`getMensajesChat: Searching for conversation between Client(${id1}) and Accountant(${id2})`);
+    
+    if (data.length <= 1) return [];
+    
+    const allRows = data.slice(1);
+    
+    // 1. Intentar encontrar mensajes que coincidan con AMBOS IDs
+    allRows.forEach(row => {
       const rowUser = String(row[1] || '').trim();
       const rowContador = String(row[2] || '').trim();
       
-      // La conversación debe ser entre id1 e id2
-      // Si id2 no se pasa (fallback anterior), seguimos permitiendo filtrado solo por uno
-      const matches = id2 
-        ? ((rowUser === id1 && rowContador === id2) || (rowUser === id2 && rowContador === id1))
-        : (rowUser === id1 || rowContador === id1);
-
-      if (matches) {
+      const matchesBoth = (rowUser === id1 && rowContador === id2) || (rowUser === id2 && rowContador === id1);
+      
+      if (matchesBoth) {
         mensajes.push({
           id: row[0],
           userId: row[1],
@@ -2086,9 +2088,34 @@ function getMensajesChat(userId, otherId) {
         });
       }
     });
+
+    // 2. Si no hay mensajes con ambos IDs, pero id2 existe, re-intentar solo con id1 (perimiso más amplio)
+    // Esto ayuda si el ContadorID registrado en el chat es distinto al actual por alguna razón
+    if (mensajes.length === 0 && id1 && id1 !== '') {
+      Logger.log('No matches found for BOTH IDs. Falling back to just client ID filtering.');
+      allRows.forEach(row => {
+        const rowUser = String(row[1] || '').trim();
+        const rowContador = String(row[2] || '').trim();
+        
+        if (rowUser === id1 || rowContador === id1) {
+          mensajes.push({
+            id: row[0],
+            userId: row[1],
+            contadorId: row[2],
+            mensaje: row[3],
+            fecha: row[4] instanceof Date ? Utilities.formatDate(row[4], 'GMT-6', 'dd/MM/yyyy HH:mm') : row[4],
+            remitente: row[5]
+          });
+        }
+      });
+    }
+    
+    Logger.log(`getMensajesChat: Found ${mensajes.length} messages`);
+    return mensajes;
+  } catch (e) {
+    Logger.log('Error en getMensajesChat: ' + e.message);
+    return [];
   }
-  
-  return mensajes;
 }
 
 function enviarMensaje(mensajeData) {
