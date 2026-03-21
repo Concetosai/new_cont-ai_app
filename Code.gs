@@ -2111,10 +2111,10 @@ function getMensajesChat(userId, otherId) {
     }
     
     Logger.log(`getMensajesChat: Found ${mensajes.length} messages`);
-    return mensajes;
+    return { mensajes: mensajes };
   } catch (e) {
     Logger.log('Error en getMensajesChat: ' + e.message);
-    return [];
+    return { mensajes: [] };
   }
 }
 
