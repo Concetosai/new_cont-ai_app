@@ -1,5 +1,5 @@
 // CONT-AI Google Apps Script Backend API
-const API_BASE = 'https://script.google.com/macros/s/AKfycbIx8F_QhG8PrSZ09GOCMHBkzBJjuJpubeDtoVyD98yXxbddZ9B86gSZoGYP1J76IY/exec';
+const API_BASE = 'https://script.google.com/macros/s/AKfycbzElGX68JvT7YIkrAV8sudLF1dtCSOWA43tgZBXh23-lrYu1AIJgMrufe4L28ZIgnlW/exec';
 
 // Google OAuth Client ID
 export const GOOGLE_CLIENT_ID = '74609739082-h5keo1b8jmvo6sv5b3og70cu8ktd80jv.apps.googleusercontent.com';
