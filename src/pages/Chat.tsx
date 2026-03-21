@@ -78,13 +78,13 @@ export default function Chat() {
       setLoading(false);
     }
     
-    // Polling cada 4 segundos para ver nuevos mensajes
+    // Polling cada 3 segundos para ver nuevos mensajes
     const interval = setInterval(() => {
       const currentTargetId = isContador ? searchParams.get('clienteId') : otherUser?.id;
       if (currentUserId && currentTargetId) {
         loadConversation(currentTargetId);
       }
-    }, 4000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [currentUserId, clienteIdParam, isContador, otherUser?.id]);
@@ -160,12 +160,12 @@ export default function Chat() {
 
       console.log('Enviando mensaje:', { clientId, accountantId, senderRole });
 
-      const result = await contAiApi.sendMessage(
-        clientId,
-        nuevoMensaje.trim(),
-        accountantId,
-        senderRole
-      );
+      const result = await contAiApi.sendMessage({
+        userId: clientId,
+        mensaje: nuevoMensaje.trim(),
+        contadorId: accountantId,
+        remitente: senderRole
+      });
       
       if (result.success) {
         setNuevoMensaje("");

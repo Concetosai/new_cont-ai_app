@@ -125,10 +125,10 @@ export const contAiApi = {
 
   // Chat
   getConversacion: (userId: string, otherId?: string) => 
-    apiRequest('chat', { userId, otherId }),
-
-  sendMessage: (userId: string, message: string, contadorId: string, remitente: string) => 
-    apiRequest('chat_send', { userId, mensaje: message, contadorId, remitente }, 'POST'),
+    apiRequest('chat', { userId, otherId, _t: Date.now() }),
+  
+  sendMessage: (data: { userId: string, contadorId: string, mensaje: string, remitente: string }) => 
+    apiRequest('chat_send', { ...data }, 'POST'),
 
   getUsuario: (userId: string) => apiRequest('user_settings', { userId }),
 
