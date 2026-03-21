@@ -21,6 +21,7 @@ import {
   Shield,
   Loader2,
   MessageCircle,
+  MessageSquare,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -131,11 +132,18 @@ export default function Dashboard() {
       color: "hsl(270, 80%, 60%)",
     },
     {
-      title: "💬 Mensajería",
-      desc: "Gestión de chats vinculados",
-      icon: MessageCircle,
+      title: userRole === 'contador' ? "👥 Mis Clientes" : "💬 Mi Contador",
+      desc: userRole === 'contador' ? "Gestión de vínculos" : "Hablar con contador",
+      icon: userRole === 'contador' ? Users : MessageCircle,
       path: userRole === 'contador' ? "/clients" : "/chat",
       color: "hsl(200, 100%, 60%)",
+    },
+    {
+      title: "💬 Mensajería",
+      desc: "Centro de mensajes",
+      icon: MessageSquare,
+      path: "/chat",
+      color: "hsl(220, 90%, 60%)",
     },
     {
       title: "💥 Simulador",
@@ -214,15 +222,15 @@ export default function Dashboard() {
               variant="outline"
               className="w-full h-16 text-base font-medium hover:bg-primary/10 hover:border-primary transition-all"
             >
-              {userRole === 'contador' ? "Mensajería" : "Mensajería"}
+              {userRole === 'contador' ? "Mis Clientes" : "Mi Contador"}
             </Button>
           </Link>
-          <Link to="/settings">
+          <Link to="/chat">
             <Button
               variant="outline"
               className="w-full h-16 text-base font-medium hover:bg-primary/10 hover:border-primary transition-all"
             >
-              Configuración
+              Mensajería
             </Button>
           </Link>
         </div>
