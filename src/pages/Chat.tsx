@@ -26,6 +26,29 @@ export default function Chat() {
   
   const isContador = currentUserRole === 'contador';
   
+  const loadConversation = async (targetId: string) => {
+    if (!currentUserId || !targetId) return;
+    
+    try {
+      let result;
+      if (isContador) {
+        // Para el contador: targetId es el cliente
+        result = await contAiApi.getConversacion(targetId, currentUserId);
+      } else {
+        // Para el cliente: targetId es el contador (otherUser.id)
+        result = await contAiApi.getConversacion(currentUserId, targetId);
+      }
+      
+      if (result?.success) {
+        setMensajes(result.data?.mensajes || []);
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+    } finally {
+      if (loading) setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!currentUserId) {
       navigate('/auth');
@@ -40,24 +63,29 @@ export default function Chat() {
   }, [currentUserId, isContador]);
   
   useEffect(() => {
-    if (currentUserId && (clienteIdParam || (!isContador && otherUser?.id))) {
-      const targetId = isContador ? clienteIdParam : otherUser?.id;
-      if (targetId) {
-        loadConversation(targetId);
-        if (isContador) {
-          loadSpecificUserInfo(targetId);
-        }
+    const targetId = isContador ? clienteIdParam : otherUser?.id;
+    
+    if (currentUserId && targetId) {
+      console.log('Chat: Loading conversation with targetId:', targetId);
+      loadConversation(targetId);
+      if (isContador) {
+        loadSpecificUserInfo(targetId);
       }
+    } else if (!isContador && currentUserId && !otherUser) {
+      // Si soy cliente y aún no tengo info del contador, esperar a loadAccountantInfo
+      console.log('Chat: Waiting for accountant info...');
     } else {
       setLoading(false);
     }
     
+    // Polling cada 4 segundos para ver nuevos mensajes
     const interval = setInterval(() => {
-      const targetId = isContador ? clienteIdParam : otherUser?.id;
-      if (currentUserId && targetId) {
-        loadConversation(targetId);
+      const currentTargetId = isContador ? searchParams.get('clienteId') : otherUser?.id;
+      if (currentUserId && currentTargetId) {
+        loadConversation(currentTargetId);
       }
-    }, 5000);
+    }, 4000);
+
     return () => clearInterval(interval);
   }, [currentUserId, clienteIdParam, isContador, otherUser?.id]);
   
@@ -105,28 +133,8 @@ export default function Chat() {
     }
   };
   
-  const loadConversation = async (targetId: string) => {
-    if (!currentUserId || !targetId) return;
-    
-    try {
-      let result;
-      if (isContador) {
-        // Para el contador: targetId es el cliente
-        result = await contAiApi.getConversacion(targetId, currentUserId);
-      } else {
-        // Para el cliente: targetId es el contador
-        result = await contAiApi.getConversacion(currentUserId, targetId);
-      }
-      
-      if (result?.success) {
-        setMensajes(result.data?.mensajes || []);
-      }
-    } catch (error) {
-      console.error('Error loading conversation:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // loadConversation refactored to be at the top level for use in interval and useEffect
+  
   
   const handleEnviar = async () => {
     if (!nuevoMensaje.trim() || !currentUserId) {
