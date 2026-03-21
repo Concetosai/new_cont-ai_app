@@ -1,9 +1,8 @@
 // CONT-AI Google Apps Script Backend API
 const API_BASE = 'https://script.google.com/macros/s/AKfycbIx8F_QhG8PrSZ09GOCMHBkzBJjuJpubeDtoVyD98yXxbddZ9B86gSZoGYP1J76IY/exec';
 
-// Google OAuth Client ID (configurable - replace with your own)
-// To get your Client ID: https://console.cloud.google.com/apis/credentials
-export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '74609739082-h5keo1b8jmvo6sv5b3og70cu8ktd80jv.apps.googleusercontent.com';
+// Google OAuth Client ID
+export const GOOGLE_CLIENT_ID = '74609739082-h5keo1b8jmvo6sv5b3og70cu8ktd80jv.apps.googleusercontent.com';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -11,228 +10,79 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+// Helper para peticiones al backend (GAS)
+// Importante: No añadir headers custom para evitar preflight OPTIONS (CORS)
+const apiRequest = async (api: string, data: any = {}, method: 'GET' | 'POST' = 'GET'): Promise<ApiResponse<any>> => {
+  try {
+    let url = API_BASE;
+    let options: RequestInit = {
+      redirect: 'follow', // Requerido para GAS
+    };
+
+    if (method === 'GET') {
+      const params = new URLSearchParams({ api, ...data });
+      url = `${API_BASE}?${params}`;
+    } else {
+      // Enviamos el body como string sin Content-Type custom para evitar preflight OPTIONS
+      options = {
+        ...options,
+        method: 'POST',
+        body: JSON.stringify({ api, ...data }),
+      };
+    }
+
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    
+    const result = await res.json();
+    return result;
+  } catch (error: any) {
+    console.error(`API Error (${api}):`, error);
+    return { success: false, error: error.message };
+  }
+};
+
 export const contAiApi = {
-  // Get Google Client ID
   getGoogleClientId: (): string => GOOGLE_CLIENT_ID,
 
-  // Dashboard KPIs
-  getDashboard: async (userId: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'dashboard', userId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
+  // Dashboard
+  getDashboard: (userId: string) => apiRequest('dashboard', { userId }),
 
-  // Gastos Scanner
-  scanTicket: async (userId: string, fileData: string): Promise<ApiResponse<any>> => {
-    const url = API_BASE;
-    const body = JSON.stringify({
-      api: 'gastos_scan',
-      userId,
-      fileData
-    });
-    const res = await fetch(url, {
-      method: 'POST',
-      body: body,
-      redirect: 'follow'
-    });
-    return res.json();
-  },
+  // Gastos
+  scanTicket: (userId: string, fileData: string) => 
+    apiRequest('gastos_scan', { userId, fileData }, 'POST'),
 
-  saveGasto: async (userId: string, gasto: any): Promise<ApiResponse<any>> => {
-    const url = API_BASE;
-    const body = JSON.stringify({
-      api: 'gastos_save',
-      userId,
-      data: JSON.stringify(gasto)
-    });
-    const res = await fetch(url, {
-      method: 'POST',
-      body: body,
-      redirect: 'follow'
-    });
-    return res.json();
-  },
+  saveGasto: (userId: string, gasto: any) => 
+    apiRequest('gastos_save', { userId, data: JSON.stringify(gasto) }, 'POST'),
 
-  // Vincular usuario a contador
-  vincularContador: async (userId: string, contadorCode: string): Promise<ApiResponse<any>> => {
-    const url = `${API_BASE}?api=vincular_contador`;
-    const res = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify({ userId, contadorCode }),
-      redirect: 'follow'
-    });
-    return res.json();
-  },
+  getGastos: (userId: string, limit: number = 20) => 
+    apiRequest('get_gastos', { userId, limit }),
 
-  // Impuestos SAT
-  getImpuestos: async (userId: string, mes: string = ''): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'impuestos', userId, mes });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
+  // Vínculos
+  vincularContador: (userId: string, contadorCode: string) => 
+    apiRequest('vincular_contador', { userId, contadorCode }, 'POST'),
 
-  pagarImpuesto: async (userId: string, impuestoId: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'impuestos_pagar', userId, impuestoId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
+  getLinkedClients: (contadorId: string) => 
+    apiRequest('get_linked_clients', { contadorId }),
+
+  // Impuestos
+  getImpuestos: (userId: string, mes: string = '') => 
+    apiRequest('impuestos', { userId, mes }),
+
+  pagarImpuesto: (userId: string, impuestoId: string) => 
+    apiRequest('impuestos_pagar', { userId, impuestoId }, 'POST'),
 
   // Alertas
-  getAlertas: async (userId: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'alertas', userId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
+  getAlertas: (userId: string) => apiRequest('alertas', { userId }),
 
   // Simulador
-  simulador: async (scenario: { ingresos: number, gastos: number, deducciones: number }): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({
-      api: 'simulador',
-      data: JSON.stringify(scenario)
-    });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
+  simulador: (scenario: any) => 
+    apiRequest('simulador', { data: JSON.stringify(scenario) }, 'POST'),
 
-  // Integraciones (placeholder)
-  connectPlataforma: async (userId: string, plataforma: string, token: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({
-      api: 'integracion_connect',
-      userId,
-      plataforma,
-      token
-    });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
-
-  // Facturas CFDI
-  getFacturas: async (userId: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'get_facturas', userId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
-
-  saveFactura: async (factura: {
-    userId: string;
-    clienteId: string;
-    monto: number;
-    status?: string;
-    rfcReceptor?: string;
-    nombreReceptor?: string;
-    usoCFDI?: string;
-    regimenFiscal?: string;
-    descripcion?: string;
-  }): Promise<ApiResponse<any>> => {
-    const url = API_BASE;
-    const body = JSON.stringify({
-      api: 'facturas_save',
-      ...factura
-    });
-    const res = await fetch(url, {
-      method: 'POST',
-      body: body,
-      redirect: 'follow'
-    });
-    return res.json();
-  },
-
-  downloadFactura: async (facturaId: string): Promise<ApiResponse<any>> => {
-    try {
-      const params = new URLSearchParams({ api: 'download_factura', facturaId });
-      const url = `${API_BASE}?${params}`;
-      const res = await fetch(url);
-
-      if (!res.ok) {
-        return { success: false, error: `HTTP error: ${res.status}` };
-      }
-
-      return res.json();
-    } catch (error: any) {
-      console.error('downloadFactura API error:', error);
-      return { success: false, error: error.message || 'Network error' };
-    }
-  },
-
-  // Chat / Mensajería
-  getConversacion: async (userId: string, otherId?: string): Promise<ApiResponse<any>> => {
-    // otherId is for future use when we support multiple conversations
-    const params = new URLSearchParams({ api: 'chat', userId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
-
-  getUsuario: async (userId: string, requesterId?: string): Promise<ApiResponse<any>> => {
-    // On the backend it might be get_client
-    const params = new URLSearchParams({ api: 'get_client', clientId: userId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
-
-  sendMessage: async (userId: string, message: string, contadorId?: string, remitente?: string): Promise<ApiResponse<any>> => {
-    const url = API_BASE;
-    const body = JSON.stringify({
-      api: 'chat_send',
-      userId,
-      contadorId,
-      mensaje: message,
-      remitente: remitente || localStorage.getItem('role') || 'usuario'
-    });
-    
-    const res = await fetch(url, {
-      method: 'POST',
-      body: body,
-      redirect: 'follow'
-    });
-    return res.json();
-  },
-
-  // User settings
-  getUserSettings: async (userId: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'user_settings', userId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
-
-  // Get contador code (QR code)
-  getContadorCode: async (userId: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'get_contador_code', userId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
-
-  // Register
-  registerUser: async (userData: any): Promise<ApiResponse<any>> => {
-    // Enviar como POST con redirect falso para Google Apps Script
-    const url = `${API_BASE}?api=register`;
-    const res = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify(userData),
-      redirect: 'follow'
-    });
-    return res.json();
-  },
-
-  // Auth (simple)
-  login: async (email: string, password: string): Promise<ApiResponse<{ userId: string, role: string }>> => {
-    const url = `${API_BASE}?api=login`;
-    const res = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify({ email, password })
-    });
-    const result = await res.json();
-    // Transformar la respuesta del backend para compatibilidad
+  // Auth
+  login: async (email: string, password: string) => {
+    const result = await apiRequest('login', { email, password }, 'POST');
+    // Mapeo para compatibilidad con código existente
     if (result.success && result.data && result.data.user) {
       return {
         success: true,
@@ -245,16 +95,10 @@ export const contAiApi = {
     return result;
   },
 
-  // Google OAuth Login - receives user info from frontend (verified there)
-  googleLogin: async (googleToken: string, userInfo?: { email: string; name?: string }): Promise<ApiResponse<{ userId: string, role: string }>> => {
-    const url = `${API_BASE}?api=google_login`;
-    const res = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify({ googleToken, userInfo }),
-      redirect: 'follow'
-    });
-    const result = await res.json();
-    // Transformar la respuesta del backend para compatibilidad
+  register: (data: any) => apiRequest('register', data, 'POST'),
+
+  googleLogin: async (data: any) => {
+    const result = await apiRequest('google_login', data, 'POST');
     if (result.success && result.data && result.data.user) {
       return {
         success: true,
@@ -267,97 +111,57 @@ export const contAiApi = {
     return result;
   },
 
-  // Google OAuth Register - receives user info from frontend (verified there)
-  googleRegister: async (googleToken: string, role: 'usuario' | 'contador', additionalData?: { nombre?: string; rfc?: string; contadorCode?: string; email?: string }, userInfo?: { email: string; name?: string }): Promise<ApiResponse<any>> => {
-    const url = `${API_BASE}?api=google_register`;
-    const res = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify({ googleToken, role, ...additionalData, userInfo }),
-      redirect: 'follow'
-    });
-    return res.json();
-  },
+  googleRegister: (data: any) => apiRequest('google_register', data, 'POST'),
 
-  // Obtener gastos del usuario
-  getGastos: async (userId: string, limit: number = 20): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'get_gastos', userId, limit: limit.toString() });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
+  // Perfil
+  getUserSettings: (userId: string) => apiRequest('user_settings', { userId }),
 
-  // Change password
-  changePassword: async (userId: string, currentPassword: string, newPassword: string): Promise<ApiResponse<any>> => {
-    const url = API_BASE;
-    const body = JSON.stringify({
-      api: 'change_password',
-      userId,
-      currentPassword,
-      newPassword
-    });
-    const res = await fetch(url, {
-      method: 'POST',
-      body: body,
-      redirect: 'follow'
-    });
-    return res.json();
-  },
+  getContadorCode: (userId: string) => apiRequest('get_contador_code', { userId }),
 
-  // Get linked clients (for contador)
-  getLinkedClients: async (contadorId: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'get_linked_clients', contadorId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
+  regenerateContadorCode: (userId: string) => apiRequest('regenerate_contador_code', { userId }),
 
-  regenerateContadorCode: async (userId: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'regenerate_contador_code', userId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
+  changePassword: (userId: string, currentPass: string, newPass: string) => 
+    apiRequest('change_password', { userId, currentPassword: currentPass, newPassword: newPass }, 'POST'),
 
-  // Get client details
-  getClient: async (clientId: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'get_client', clientId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
+  // Chat
+  getConversacion: (userId: string, otherId?: string) => 
+    apiRequest('chat', { userId, otherId }),
 
-  // Get client gastos
-  getClientGastos: async (clientId: string, limit: number = 50): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'get_client_gastos', clientId, limit: limit.toString() });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  },
+  sendMessage: (userId: string, message: string, contadorId: string, remitente: string) => 
+    apiRequest('chat_send', { userId, mensaje: message, contadorId, remitente }, 'POST'),
 
-  // Save contador notes
-  saveContadorNotes: async (contadorId: string, clientId: string, notes: string): Promise<ApiResponse<any>> => {
-    const url = API_BASE;
-    const body = JSON.stringify({
-      api: 'save_contador_notes',
-      contadorId,
-      clientId,
-      notes
-    });
-    const res = await fetch(url, {
-      method: 'POST',
-      body: body,
-      redirect: 'follow'
-    });
-    return res.json();
-  },
+  getUsuario: (userId: string) => apiRequest('user_settings', { userId }),
 
-  // Get contador notes
-  getContadorNotes: async (contadorId: string, clientId: string): Promise<ApiResponse<any>> => {
-    const params = new URLSearchParams({ api: 'get_contador_notes', contadorId, clientId });
-    const url = `${API_BASE}?${params}`;
-    const res = await fetch(url);
-    return res.json();
-  }
+  getClient: (clientId: string) => apiRequest('get_client', { clientId }),
+
+  getClientGastos: (clientId: string, limit: number = 50) => 
+    apiRequest('get_client_gastos', { clientId, limit }),
+
+  // Facturas
+  getFacturas: (userId: string) => apiRequest('get_facturas', { userId }),
+
+  saveFactura: (data: any) => apiRequest('facturas_save', data, 'POST'),
+
+  downloadFactura: (facturaId: string) => apiRequest('download_factura', { facturaId }),
+
+  // Integraciones
+  connectPlataforma: (userId: string, plataforma: string, token: string) => 
+    apiRequest('integracion_connect', { userId, plataforma, token }, 'POST'),
+
+  saveContadorNotes: (contadorId: string, clientId: string, notes: string) => 
+    apiRequest('save_contador_notes', { contadorId, clientId, notes }, 'POST'),
+
+  getContadorNotes: (contadorId: string, clientId: string) => 
+    apiRequest('get_contador_notes', { contadorId, clientId }),
+
+  // Bóveda
+  getBovedaFiles: (userId: string) => apiRequest('boveda_list', { userId }),
+
+  uploadBovedaFile: (userId: string, fileData: string, fileName: string, fileType: string) => 
+    apiRequest('boveda_upload', { userId, fileData, fileName, fileType }, 'POST'),
+
+  deleteBovedaFile: (userId: string, fileId: string) => 
+    apiRequest('boveda_delete', { userId, fileId }, 'POST'),
 };
 
 export default contAiApi;

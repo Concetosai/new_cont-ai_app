@@ -29,10 +29,11 @@ const statusConfig = {
   cancelada: { label: "Cancelada", color: "hsl(0, 72%, 55%)", bg: "hsl(0 72% 51% / 0.1)", icon: XCircle },
 };
 
-// Mock user ID for demo - in production, get from auth context
-const MOCK_USER_ID = "usuario-001";
+// Get real user ID from auth
+const getUserId = () => localStorage.getItem('userId') || "";
 
 export default function Facturacion() {
+  const userId = getUserId();
   const [showNew, setShowNew] = useState(false);
   const [invoices, setInvoices] = useState<Factura[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +60,7 @@ export default function Facturacion() {
   const loadFacturas = async () => {
     try {
       setLoading(true);
-      const response = await contAiApi.getFacturas(MOCK_USER_ID);
+      const response = await contAiApi.getFacturas(userId);
       if (response.success && response.data) {
         const facturas = response.data.facturas || [];
         setInvoices(facturas);
@@ -98,7 +99,7 @@ export default function Facturacion() {
       setSaving(true);
       
       const response = await contAiApi.saveFactura({
-        userId: MOCK_USER_ID,
+        userId: userId,
         clienteId: formData.clienteId || `CLIENTE_${formData.rfcReceptor}`,
         monto: parseFloat(formData.monto),
         status: formData.status,
