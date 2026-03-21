@@ -341,8 +341,9 @@ function handleRequest(e, method) {
       case 'chat': // Match api.ts
       case 'chat_mensajes':
         const userIdChat = e.parameter.userId;
+        const otherIdChat = e.parameter.otherId;
         if (!userIdChat) throw new Error('userId requerido');
-        result = getMensajesChat(userIdChat);
+        result = getMensajesChat(userIdChat, otherIdChat);
         break;
         
       case 'chat_send': // Match api.ts
@@ -2047,7 +2048,7 @@ function calcularSimulacion(data) {
 // =====================================================
 // FUNCIONES DE NEGOCIO - CHAT / CONTADOR
 // =====================================================
-function getMensajesChat(userId) {
+function getMensajesChat(userId, otherId) {
   const ss = SpreadsheetApp.getActive();
   let sheet = ss.getSheetByName(SHEETS.CHAT);
   if (!sheet) {
@@ -2059,30 +2060,35 @@ function getMensajesChat(userId) {
   const data = sheet.getDataRange().getValues();
   const mensajes = [];
   
+  const id1 = String(userId || '').trim();
+  const id2 = String(otherId || '').trim();
+  
   // Si hay datos (más allá de la cabecera)
   if (data.length > 1) {
     data.slice(1).forEach(row => {
-      // row[1] = UserID, row[2] = ContadorID
-      if (row[1] == userId || row[2] == userId) {
+      const rowUser = String(row[1] || '').trim();
+      const rowContador = String(row[2] || '').trim();
+      
+      // La conversación debe ser entre id1 e id2
+      // Si id2 no se pasa (fallback anterior), seguimos permitiendo filtrado solo por uno
+      const matches = id2 
+        ? ((rowUser === id1 && rowContador === id2) || (rowUser === id2 && rowContador === id1))
+        : (rowUser === id1 || rowContador === id1);
+
+      if (matches) {
         mensajes.push({
           id: row[0],
           userId: row[1],
           contadorId: row[2],
           mensaje: row[3],
-          fecha: Utilities.formatDate(row[4], 'GMT-6', 'dd/MM/yyyy HH:mm'),
+          fecha: row[4] instanceof Date ? Utilities.formatDate(row[4], 'GMT-6', 'dd/MM/yyyy HH:mm') : row[4],
           remitente: row[5]
         });
       }
     });
   }
   
-  // Ordenar por fecha cronológicamente
-  return mensajes.sort((a, b) => {
-    // Parser simple de la fecha dd/MM/yyyy HH:mm para el sort si es necesario, 
-    // pero como vienen de un objeto Date original en la hoja, podríamos guardarlo diferente.
-    // Usaremos el objeto original si es posible.
-    return 0; // El .forEach ya los lee en orden de inserción de filas, que es cronológico.
-  });
+  return mensajes;
 }
 
 function enviarMensaje(mensajeData) {
