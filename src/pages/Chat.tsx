@@ -106,12 +106,16 @@ export default function Chat() {
   };
   
   const loadConversation = async (targetId: string) => {
+    if (!currentUserId || !targetId) return;
+    
     try {
       let result;
       if (isContador) {
-        result = await contAiApi.getConversacion(targetId, currentUserId!);
+        // Para el contador: targetId es el cliente
+        result = await contAiApi.getConversacion(targetId, currentUserId);
       } else {
-        result = await contAiApi.getConversacion(currentUserId!, targetId);
+        // Para el cliente: targetId es el contador
+        result = await contAiApi.getConversacion(currentUserId, targetId);
       }
       
       if (result?.success) {
@@ -125,32 +129,60 @@ export default function Chat() {
   };
   
   const handleEnviar = async () => {
-    if (!nuevoMensaje.trim() || !currentUserId) return;
+    if (!nuevoMensaje.trim() || !currentUserId) {
+      console.log('No hay mensaje o no hay usuario actual');
+      return;
+    }
     
+    // Obtener el destinatario
     const destId = isContador ? clienteIdParam : otherUser?.id;
-    if (!destId) return;
+    
+    if (!destId) {
+      console.log('No se pudo determinar el destinatario');
+      toast({ title: "Error", description: "No se ha seleccionado un destinatario", variant: "destructive" });
+      return;
+    }
 
     setSending(true);
     try {
+      // Siempre enviamos: (idDelCliente, mensaje, idDelContador, remitente)
+      const clientId = isContador ? destId : currentUserId;
+      const accountantId = isContador ? currentUserId : destId;
+      const senderRole = isContador ? 'contador' : 'usuario';
+
+      console.log('Enviando mensaje:', { clientId, accountantId, senderRole });
+
       const result = await contAiApi.sendMessage(
-        isContador ? destId : currentUserId,
-        nuevoMensaje,
-        isContador ? currentUserId : destId,
-        isContador ? 'contador' : 'usuario'
+        clientId,
+        nuevoMensaje.trim(),
+        accountantId,
+        senderRole
       );
       
       if (result.success) {
         setNuevoMensaje("");
+        toast({ title: "Mensaje enviado", description: "El mensaje se envió correctamente" });
+        // Recargar conversación inmediatamente
         loadConversation(destId);
       } else {
-        toast({ title: "Error", description: result.error || "No se pudo enviar", variant: "destructive" });
+        console.error('Error del servidor al enviar:', result.error);
+        toast({ title: "Error", description: result.error || "No se pudo enviar el mensaje", variant: "destructive" });
       }
-    } catch (error) {
-      toast({ title: "Error", description: "Error al enviar mensaje", variant: "destructive" });
+    } catch (error: any) {
+      console.error('Error de red al enviar:', error);
+      toast({ title: "Error", description: "Error de red al enviar el mensaje", variant: "destructive" });
     } finally {
       setSending(false);
     }
   };
+
+  // Limpiar mensajes al cambiar de contacto para evitar confusión visual
+  useEffect(() => {
+    if (isContador && clienteIdParam) {
+      setMensajes([]);
+      // El useEffect principal ya llamará a loadConversation
+    }
+  }, [clienteIdParam]);
   
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -294,7 +326,7 @@ export default function Chat() {
                   </div>
                 ) : (
                   mensajes.map((msg, index) => {
-                    const isMyMessage = msg.remitente === currentUserRole;
+                    const isMyMessage = msg.remitente?.toLowerCase() === currentUserRole?.toLowerCase();
                     return (
                       <motion.div
                         key={msg.id || index}
